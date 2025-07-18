@@ -18,7 +18,9 @@ DEBUG = True
 WriteFile = False
 
 def switch_led(state="1"):
-	'''arduino should be running serial_to_LED.ino'''
+	'''arduino should be running serial_to_LED.ino
+ 	probably should re-make the circuit with a better transistor'''
+  
 	ARDUINOPORT = '/dev/tty.usbserial-018D7F64'
 	""" Turn on the LED by sending a command to the Arduino. 
  	SEE BELOW TO DO IT AT python3 prompt"""
@@ -52,6 +54,8 @@ def capture_spectrum(integration_time=1000): # in milliseconds
 switch_led("1")  # Turn on the LED
 time.sleep(0.1)
 time.sleep(1)  
+
+# Commented out for testing
 # myA = capture_spectrum()
 # for a,b in zip(myA[0], myA[1]):
 # 	print(f"{a:.2f}\t{b:.2f}")
@@ -64,7 +68,8 @@ if WriteFile:
 			f.write(f"{a:.2f}\t{b:.2f}\n")	
   
   
-""" ARDUINO SKETCH TO UPLOAD FOR LED SUPPORT
+""" 
+ARDUINO SKETCH TO UPLOAD FOR LED SUPPORT
   const int ledPin = 9;
 int inByte;
 
