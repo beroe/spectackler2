@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 from __future__ import print_function
 
@@ -18,7 +18,7 @@ import traceback
 import time
 import numpy as np
 import pandas as pd
-import neslabrte111 as neslab
+import neslabrte as neslab
 import isco260D as isco
 
 #delay = 0.1 # approximate (overestimate) of sampling period in seconds
