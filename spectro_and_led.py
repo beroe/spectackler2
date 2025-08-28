@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """ Turn on LED with serial command, then run brizzy to save one spectrum, then turn off LED.
+
+Requirements:
+pip3 install pyserial
+pip3 install seabreeze
 """
 import serial
 import asyncio
@@ -25,9 +29,10 @@ async def switch_led(state="1", debug=False,invert=False):
 	'''arduino should be running serial_to_LED.ino
 	probably should re-make the circuit with a better transistor
  	LED controlled is backwards, so these need to be reversed if not controlling directly'''
+# TODO look up usbmodem number automatically
 
 	ARDUINOPORT = '/dev/tty.usbserial-018D7F64'
-	ARDUINOPORT = '/dev/tty.usbmodem11101'  # Arduino micro
+	ARDUINOPORT = '/dev/tty.usbmodem143101'  # Arduino micro
 
 	""" Turn on the LED by sending a command to the Arduino. 
 	SEE BELOW TO DO IT AT python3 prompt"""

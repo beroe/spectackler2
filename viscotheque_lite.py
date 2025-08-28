@@ -11,6 +11,7 @@ logging process and reference temps all the way
 # the serial port to which the NESLAB waterbath is connected
 bathport = "COM5"
 pumpport = "COM6"
+pumpport = "/dev/tty.usbserial-FT4IVKAO0"
 
 from os import getcwd
 import sys
