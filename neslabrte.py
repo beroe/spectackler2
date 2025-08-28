@@ -19,8 +19,9 @@ from itertools import chain
 ## binary encode/decode functions
     
 def bytestr2bytelist(bytestr):
-    "Get ordinal values from bytestring."
-    return [ord(i) for i in bytestr]
+    "Get ordinal values from bytestring. NOT needed for Py3"
+    print ("Bytestr INT:",bytestr)
+    return [i for i in bytestr]
     
 def checksum(bytelist):
     "Calculate checksum: bitwise inversion of sum of bytestring."
@@ -130,7 +131,9 @@ class NeslabController(TCal):
         # these can be adjusted by bath.cal_ext.reset(slope, xcept)
         self.cal_int = TCal(1, 0)
         self.cal_ext = TCal(1, 0)
-        
+    def hello(self, cmd):
+        return("hello",cmd)
+
     def query(self, cmd, dat=[]):
         "Send a query and return response bytes; throw ChecksumException if checksum fails."
         
@@ -291,11 +294,18 @@ class NeslabController(TCal):
     def temp_get_int(self):
         "Get current temp at internal sensor."
         return threebyte2float(self.query([0x20]))
-        
+
+    def tint(self):
+        "Get current temp at internal sensor."
+        return threebyte2float(self.query([0x20]))
+
     def temp_get_ext(self):
         "Get current temp at external sensor."
         return threebyte2float(self.query([0x21]))
-            
+
+    def text(self):
+        "Get current temp at external sensor."
+           
     def temp_get_act(self, ext=None):
         "Get calibrated temp, by default from active sensor."
         # if sensor not specified, use the active one

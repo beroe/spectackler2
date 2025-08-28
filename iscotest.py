@@ -13,7 +13,14 @@ def gg2psi(gg_str):
     return float(gg_str.decode("utf-8").split('=')[1].split(',')[0]) / 5
 
 pump = isco.ISCOController(port="/dev/cu.usbserial-FT4IVKAO0",source=0,dest=1)
-print("example commands:\npress_set()\ndisconnect()\npress_get()\nflow_get()\n")
+
+print('''Example commands:
+   press_set()
+   disconnect()
+   press_get()
+   flow_get()
+''')
+
 pump.remote()
 print(pump.gg())
 KeepGoing = True
