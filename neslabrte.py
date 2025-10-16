@@ -20,7 +20,7 @@ from itertools import chain
     
 def bytestr2bytelist(bytestr):
     "Get ordinal values from bytestring. NOT needed for Py3"
-    print ("Bytestr INT:",bytestr)
+    #print ("Bytestr INT:",bytestr)
     return [i for i in bytestr]
     
 def checksum(bytelist):
@@ -178,19 +178,18 @@ class NeslabController(TCal):
     ## i.e. not dynamic measured values
         
     def status_set(self, 
-        unit_on = None, 
+        unit_on = True, 
         probe_ext = None, 
         faults = None, 
         mute = None, 
         auto_restart = None,
         prec_hi = None,
         fullrange_cool = None,
-        remote = None
-    ):
+        remote = None):
         "On/off array setter."
         # make sure bytes are in order
         switches = ["unit_on", "probe_ext", "faults", "mute", "auto_restart", "prec_hi", "fullrange_cool", "remote"]
-        dat = [0x02 if locals()[i] is None else int(locals()[i]) for i in switches]
+        dat = [0x02 if locals().get(i,0) is None else int(locals().get(i,0)) for i in switches]
         return self.query([0x81], dat=dat) == dat # True if successful
     
     def status_get(self):
@@ -202,8 +201,8 @@ class NeslabController(TCal):
         "Get or set on-status of the circulator."
         # get
         if status is None: return self.status_get()["unit_on"]
-        # set
-        else: return status_set(unit_on = status)
+        # set  WAS Missing self. below??
+        else: return self.status_set(unit_on = status)
             
     def probe_ext(self, status=None):
         "Get or set status of external probe (used for control, or not?)"

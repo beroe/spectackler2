@@ -15,12 +15,14 @@ import argparse
 import seabreeze.spectrometers as sb
 import seabreeze
 from datetime import datetime
+from config import portARDU
 
 def parse_args():
 	parser = argparse.ArgumentParser(description='Control LED and capture spectrum from Ocean Optics spectrometer')
 	parser.add_argument('-b', '--debug', action='store_true', help='Enable debug output')
 	parser.add_argument('-w', '--write', action='store_true', help='Write spectrum data to file instead of stdout')
 	parser.add_argument('-i', '--invert', action='store_false', help='Normal LED control logic (default: 0=on, 1=off)', default=True)
+	parser.add_argument('-e','--extra',type=str, default="",help='append to file name')
 	parser.add_argument('-t', '--time', type=int, default=1000, help='Integration time in milliseconds (default: 1000)')
 
 	return parser.parse_args()
@@ -32,8 +34,8 @@ async def switch_led(state="1", debug=False,invert=False):
 # TODO look up usbmodem number automatically
 
 	ARDUINOPORT = '/dev/tty.usbserial-018D7F64'
-	ARDUINOPORT = '/dev/tty.usbmodem143101'  # Arduino micro
-
+	ARDUINOPORT = '/dev/tty.usbmodem143301'  # Arduino micro
+	ARDUINOPORT = portARDU
 	""" Turn on the LED by sending a command to the Arduino. 
 	SEE BELOW TO DO IT AT python3 prompt"""
 	if invert:
@@ -91,7 +93,7 @@ async def main():
 		
 		# Write to file if enabled and spectrum was captured
 		timestamp = datetime.now().strftime("%Y_%b_%d+%H_%M_%S")
-		FileName = f"data/spectrum_{timestamp}.tsv"
+		FileName = f"data/spectrum_{timestamp}{args.extra}.tsv"
 		if args.write and myA is not None:
 			with open(FileName, "w") as f:
 				f.write("Wavelength\tIntensity\n")

@@ -12,7 +12,7 @@ logging process and reference temps all the way
 bathport = "COM5"
 pumpport = "COM6"
 pumpport = "/dev/tty.usbserial-FT4IVKAO0"
-
+bathport = "/dev/tty.usbserial-FT4IVKAO1" # not showing up?
 from os import getcwd
 import sys
 import traceback

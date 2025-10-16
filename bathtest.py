@@ -17,8 +17,8 @@ bath = neslab.NeslabController(port=bathport)
 print("Found bath:",bath)
 print('''Example commands:
    temp_set()
-   bath.temp_get_int()
-   bath.temp_get_ext()
+   temp_get_int() = tint()
+   temp_get_ext() = text()
    disconnect()
    status_get()
    on() # circuator
