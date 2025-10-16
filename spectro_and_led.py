@@ -110,7 +110,8 @@ if __name__ == "__main__":
   
   
 """ 
-ARDUINO SKETCH TO UPLOAD FOR LED SUPPORT
+ARDUINO SKETCH TO UPLOAD FOR LED SUPPORT: Upload to Arduino using Arduino IDE
+
   const int ledPin = 9;
 int inByte;
 

@@ -9,9 +9,10 @@ logging process and reference temps all the way
 Turn bath on manually and push the computer button.
 
 """
-## ATTENTION: this script is set up for Windows
+## ATTENTION: This script is set up for Unix
 
-# the serial port to which the NESLAB waterbath is connected
+# Define serial port to which the NESLAB waterbath and ISCO 260D syringe pump are connected
+# Load statefile for temperature/pressure experiment
 from config import portBATH,portPRES,stateFILE
 bathport = portBATH
 pumpport = portPRES
@@ -45,8 +46,7 @@ def logstate(bath="",pump="",hand_log="", spectrum=False):
 
 opt=parse_args()
 
-delaytime = 1 # 60 seconds but set to be shorter for testing
-longdelay = 2 # 120s but set to be shorter for testing
+delaytime = 1 # 60 seconds but set to be shorter for testing, delay between spectral measurements
 
 # start a timestamped datalog file
 file_log = getcwd() + r"/data/plog_" + time.strftime("%Y%m%dT%H%M") + ".tsv"
@@ -106,12 +106,11 @@ with open(file_log, 'a+', buffering=1) as hand_log:
 				print(f"T:{tint}")
 				logstate(bath=bath,pump=pump,hand_log=hand_log)
 
-
 		print(f"Temp has reached {tint} deg C", file=sys.stderr)
 	
 		# Wait a couple minutes to account for overshoot
-		print(f"Waiting {longdelay/60:.1f} minutes...", file=sys.stderr)
-		time.sleep(longdelay)
+		print(f"Waiting {timeinterval/60:.1f} minutes...", file=sys.stderr)
+		time.sleep(timeinterval)
 		# set bath temperature persistently
 		time_state=time.time()
 		
@@ -131,8 +130,8 @@ with open(file_log, 'a+', buffering=1) as hand_log:
 		print(f"Pressure reached: {pres}", file=sys.stderr)
 		
 		# wait data for the prescribed period
-		print(f"Waiting {longdelay/60:.1f} minutes...", file=sys.stderr)
-		time.sleep(longdelay)  
+		print(f"Waiting {timeinterval/60:.1f} minutes...", file=sys.stderr)
+		time.sleep(timeinterval)  
 
 		# log state before taking spectra
 		logstate(bath=bath,pump=pump,hand_log=hand_log,spectrum=False)
