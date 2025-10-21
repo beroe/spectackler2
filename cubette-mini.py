@@ -17,7 +17,8 @@ from config import portBATH,portPRES,stateFILE
 bathport = portBATH
 pumpport = portPRES
 
-from os import getcwd
+from os import getcwd, makedirs
+import os
 import sys
 import argparse
 import time
@@ -26,6 +27,8 @@ from pandas import read_csv
 import neslabrte as neslab
 import isco260D as isco
 import subprocess
+from datetime import datetime
+
 
 def parse_args():
 	parser = argparse.ArgumentParser(description='Control Pressure and Temperature')
@@ -55,15 +58,33 @@ opt=parse_args()
 
 delaytime = 1 # 60 seconds but set to be shorter for testing, delay between spectral measurements
 
-# start a timestamped datalog file
-file_log = getcwd() + r"/data/plog_" + time.strftime("%Y%m%dT%H%M") + ".tsv"
-
 # read statefile		
 print(f"Reading states from {stateFILE}", file=sys.stderr)
 states = read_csv(stateFILE, sep='\t')
 if opt.debug:
 	print("States\n",states,file=sys.stderr)
-# open output file
+
+#-----------------------------------
+# Create experiment folder with daily numbering
+#-----------------------------------
+
+today = datetime.now().strftime("%Y%m%d")
+data_dir = getcwd() + "/data"
+
+# list existing experiment folders for today
+existing_today = [d for d in os.listdir(data_dir)
+		  if d.startswith("Experiment_") and today in d]
+
+exp_num = len(existing_today) + 1
+experiment_timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+experiment_folder = os.path.join(data_dir, f"Experiment_{exp_num}_{experiment_timestamp}")
+makedirs(experiment_folder, exist_ok=True)
+
+if opt.debug:
+	print(f"Experiment folder: {experiment_folder}", file=sys.stderr)
+
+# save log file inside experiment folder
+file_log = os.path.join(experiment_folder, f"plog_{experiment_timestamp}.tsv")
 
 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 print(f"Starting run at {timestamp}")
@@ -145,18 +166,31 @@ with open(file_log, 'a+', buffering=1) as hand_log:
 
 		# take spectra, running spectro_and_led.py
 		ipres = int(pres)
-		itint = (f"{tint:.1f}")
-		scommand = f'/Users/haddock/repos/spectackler2/spectro_and_led.py -w -e "_P{ipres}_T{itint}" -t 1000'
+		itint = f"{tint:.1f}"
+		# run spectro_and_led.py, saving spectra inside experiment folder
+		ipres = int(pres)
+		itint = f"{tint:.1f}"
 
-		# take 3 spectra, with 1 minute delay in between each measurement
-		for i in range(3):
-			print(f"Taking spectrum {i+1}", file=sys.stderr)
+		# take 3 spectra, each with a unique filename so they do not overwrite
+		for j in range(3):
+			# create a unique filename: timestamp with microseconds + index
+			spec_ts = datetime.now().strftime("%Y%m%dT%H%M%S%f")
+			spec_filename = os.path.join(
+				experiment_folder,
+				f"spectrum_{spec_ts}_idx{j+1}_P{ipres}_T{itint}.tsv"
+			)
+
+			# call spectro_and_led.py with the full output filename
+			scommand = (
+				f'python3 /Users/haddock/repos/spectackler2/spectro_and_led.py '
+				f'-w -e "{spec_filename}" -t 1000'
+			)
+
+			print(f"Taking spectrum {j+1}", file=sys.stderr)
 			logstate(bath=bath, pump=pump, hand_log=hand_log, spectrum=True)  # spectrum start
 			subprocess.run(scommand, bufsize=1, shell=True)
 			time.sleep(delaytime)
 			logstate(bath=bath, pump=pump, hand_log=hand_log, spectrum=False)  # spectrum end
-
-		logstate(bath=bath, pump=pump, hand_log=hand_log, spectrum=False)
 		
 	# shut down hardware
 	timestamp = time.strftime("%Y-%m-%d %H:%M:%S")

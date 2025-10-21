@@ -81,7 +81,6 @@ async def main():
 		
 		# Capture spectrum if enabled
 		myA = None
-		# Commented out for testing - uncomment the next three lines to enable spectrum capture
 		myA = await capture_spectrum(integration_time=args.time, debug=args.debug)
 		if not args.write:
 			for a,b in zip(myA[0], myA[1]):
@@ -93,7 +92,14 @@ async def main():
 		
 		# Write to file if enabled and spectrum was captured
 		timestamp = datetime.now().strftime("%Y_%b_%d+%H_%M_%S")
-		FileName = f"data/spectrum_{timestamp}{args.extra}.tsv"
+		if os.path.isabs(args.extra):
+			FileName = args.extra
+			# ensure directory exists
+			os.makedirs(os.path.dirname(FileName), exist_ok=True)
+		else:
+			FileName = os.path.join("data", f"spectrum_{timestamp}{args.extra}.tsv")
+			os.makedirs("data", exist_ok=True)
+
 		if args.write and myA is not None:
 			with open(FileName, "w") as f:
 				f.write("Wavelength\tIntensity\n")
