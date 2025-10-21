@@ -32,25 +32,33 @@ def parse_args():
 	parser.add_argument('-b', '--debug', action='store_true', help='Enable debug output')
 	return parser.parse_args()
 
-def logstate(bath="",pump="",hand_log="", spectrum=False):
+#-----------------------------------
+# Log file
+#-----------------------------------
+
+log_header = ["clock", "watch", "tint", "pres", "spectrum"]
+
+def logstate(bath=None,pump=None,hand_log=None, spectrum=False):
 	data = {
 			"clock": time.strftime("%Y%m%d %H%M%S"), 
 			"watch": int(time.time() - time_start),
-			"tint": bath.temp_get_int(),
-			"pres": pump.press_get(),
-			"spectrum": spectrum
+			"tint": bath.temp_get_int() if bath else None,
+			"pres": pump.press_get() if pump else None,
+			"spectrum": "TRUE" if spectrum else "FALSE"
 			}
-	pres=data.get("pres")
-	tint=data.get("tint")
-	hand_log.write('\t'.join([str(data[key]) for key in sorted(data.keys())]) + '\n')
+	hand_log.write('\t'.join(str(data[key]) for key in log_header) + '\n')
 
+#-----------------------------------
+# Main script
+#-----------------------------------
 opt=parse_args()
 
 delaytime = 1 # 60 seconds but set to be shorter for testing, delay between spectral measurements
 
 # start a timestamped datalog file
 file_log = getcwd() + r"/data/plog_" + time.strftime("%Y%m%dT%H%M") + ".tsv"
-		
+
+# read statefile		
 print(f"Reading states from {stateFILE}", file=sys.stderr)
 states = read_csv(stateFILE, sep='\t')
 if opt.debug:
@@ -63,8 +71,7 @@ print(f"Starting run at {timestamp}")
 with open(file_log, 'a+', buffering=1) as hand_log:
 
 	# write header
-	header = ["clock", "watch", "tint", "pres", "spectrum"]
-	hand_log.write('\t'.join(header) + '\n')
+	hand_log.write('\t'.join(log_header) + '\n')
 	
 	# init water bath
 	bath = neslab.NeslabController(port=bathport)
