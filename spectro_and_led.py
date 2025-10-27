@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 
 """ Turn on LED with serial command, then run brizzy to save one spectrum, then turn off LED.
-
+v 0.2 autoreveal arduino port
 Requirements:
 pip3 install pyserial
 pip3 install seabreeze
 """
 import serial
 import asyncio
+import glob
 import os
 import sys
 import argparse
@@ -16,6 +17,7 @@ import seabreeze.spectrometers as sb
 import seabreeze
 from datetime import datetime
 from config import portARDU
+# TODO: get portARDU from a glob.glob
 
 def parse_args():
 	parser = argparse.ArgumentParser(description='Control LED and capture spectrum from Ocean Optics spectrometer')
@@ -31,11 +33,16 @@ async def switch_led(state="1", debug=False,invert=False):
 	'''arduino should be running serial_to_LED.ino
 	probably should re-make the circuit with a better transistor
  	LED controlled is backwards, so these need to be reversed if not controlling directly'''
-# TODO look up usbmodem number automatically
-
+	Port=glob.glob("/dev/tty.usbmodem*")
+	# TODO look up usbmodem number automatically
 	ARDUINOPORT = '/dev/tty.usbserial-018D7F64'
 	ARDUINOPORT = '/dev/tty.usbmodem143301'  # Arduino micro
-	ARDUINOPORT = portARDU
+	if len(Port) == 1:
+		ARDUINOPORT = Port[0]
+		print (f"Auto-discovered Arduino Port: {ARDUINOPORT}", file=sys.stderr)
+	else:
+		ARDUINOPORT = portARDU
+
 	""" Turn on the LED by sending a command to the Arduino. 
 	SEE BELOW TO DO IT AT python3 prompt"""
 	if invert:
@@ -118,31 +125,38 @@ if __name__ == "__main__":
 """ 
 ARDUINO SKETCH TO UPLOAD FOR LED SUPPORT: Upload to Arduino using Arduino IDE
 
-  const int ledPin = 9;
+const int ledPin = 9;
+const int ledPinDirect = 10;
 int inByte;
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   pinMode(ledPin, OUTPUT);
+  pinMode(ledPinDirect, OUTPUT);
+  digitalWrite(ledPin, HIGH);
+  digitalWrite(ledPinDirect, LOW);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
   if (Serial.available()) {
-	  // get incoming byte:
-	inByte = Serial.read();
-	switch (inByte) {
-	  case '0':
-	    digitalWrite(ledPin, LOW);
-	    break;
-	  case '1':
-	    digitalWrite(ledPin,HIGH);
-	    break;
-	}
+    // get incoming byte:
+  inByte = Serial.read();
+  switch (inByte) {
+    case '0':
+      digitalWrite(ledPin, LOW);
+      digitalWrite(ledPinDirect, HIGH);
+      break;
+    case '1':
+      digitalWrite(ledPin,HIGH);
+      digitalWrite(ledPinDirect, LOW);
+      break;
+  }
   }
 }
 """
+
 """
 import serial
 ARDUINOPORT = '/dev/tty.usbserial-018D7F64'
