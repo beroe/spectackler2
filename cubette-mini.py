@@ -13,7 +13,7 @@ Turn bath on manually and push the computer button.
 
 # Define serial port to which the NESLAB waterbath and ISCO 260D syringe pump are connected
 # Load statefile for temperature/pressure experiment
-from config import portBATH,portPRES,stateFILE
+from spec_config import portBATH,portPRES,stateFILE
 bathport = portBATH
 pumpport = portPRES
 
@@ -56,7 +56,7 @@ def logstate(bath=None,pump=None,hand_log=None, spectrum=False):
 #-----------------------------------
 opt=parse_args()
 
-delaytime = 1 # 60 seconds but set to be shorter for testing, delay between spectral measurements
+delaytime = 60 # 60 seconds but set to be shorter for testing, delay between spectral measurements
 
 # read statefile		
 print(f"Reading states from {stateFILE}", file=sys.stderr)

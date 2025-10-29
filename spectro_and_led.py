@@ -16,7 +16,7 @@ import argparse
 import seabreeze.spectrometers as sb
 import seabreeze
 from datetime import datetime
-from config import portARDU
+from spec_config import portARDU
 # TODO: get portARDU from a glob.glob
 
 def parse_args():
@@ -104,7 +104,7 @@ async def main():
 			# ensure directory exists
 			os.makedirs(os.path.dirname(FileName), exist_ok=True)
 		else:
-			FileName = os.path.join("data", f"spectrum_{timestamp}{args.extra}.tsv")
+			FileName = os.path.join("data", f"spectrum_{timestamp}_{args.extra}.tsv")
 			os.makedirs("data", exist_ok=True)
 
 		if args.write and myA is not None:
