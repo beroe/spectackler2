@@ -56,9 +56,9 @@ def logstate(bath=None,pump=None,hand_log=None, spectrum=False):
 #-----------------------------------
 opt=parse_args()
 
-delaytime = 60 # 60 seconds but set to be shorter for testing, delay between spectral measurements
+delaytime = 60 # delay between spectral measurements (seconds)
 
-# read statefile		
+# Read statefile
 print(f"Reading states from {stateFILE}", file=sys.stderr)
 states = read_csv(stateFILE, sep='\t')
 if opt.debug:
@@ -71,7 +71,7 @@ if opt.debug:
 today = datetime.now().strftime("%Y%m%d")
 data_dir = getcwd() + "/data"
 
-# list existing experiment folders for today
+# List existing experiment folders for today
 existing_today = [d for d in os.listdir(data_dir)
 		  if d.startswith("Experiment_") and today in d]
 
@@ -83,18 +83,22 @@ makedirs(experiment_folder, exist_ok=True)
 if opt.debug:
 	print(f"Experiment folder: {experiment_folder}", file=sys.stderr)
 
-# save log file inside experiment folder
+# Save log file inside experiment folder
 file_log = os.path.join(experiment_folder, f"plog_{experiment_timestamp}.tsv")
 
 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 print(f"Starting run at {timestamp}")
 
+#-----------------------------------
+# Run experiment
+#-----------------------------------
+
 with open(file_log, 'a+', buffering=1) as hand_log:
 
-	# write header
+	# Write headers to log file
 	hand_log.write('\t'.join(log_header) + '\n')
 	
-	# init water bath
+	# Initialize Neslab water bath
 	bath = neslab.NeslabController(port=bathport)
 	time.sleep(1)
 
@@ -102,85 +106,87 @@ with open(file_log, 'a+', buffering=1) as hand_log:
 		for x in bath.status_get():
 			print(x)
 
-	# init ISCO pump
+	# Initialize ISCO pump
 	# default destination on pump is 6
 	pump = isco.ISCOController(port=pumpport,source=0,dest=6)
 	pump.run()
-	pump.maxflow(15)
-
-	## run experiment
+	pump.maxflow(15) #Set flow rate on pump
 	
-	# start experiment timer (i.e. stopwatch)
+	# Start experiment timer
 	time_start = time.time() # in seconds
 	
 	# iterate over test states
 	oldint=0
+	prev_temp=None
+	prev_press=None
+
 	for i,state in states.iterrows():
 		temp=state.Temp
 		pres=state.Press
 		timeinterval = state.Time
+		press_wait = getattr(state, "Press_time", 0)
+		temp_wait = getattr(state, "Temp_time", 0)
 
-		time_state = time.time()
-		tint = bath.temp_get_int()
-		print(f"Setting temp to {temp}. Currently {tint}", file=sys.stderr)
-		
-		# Set the temperature and wait for it to reach the target
-		bath.temp_set(temp)
-		while not tint==temp: 
-			tint=bath.tint()
-			newint = int(time.time() - time_state)
-			if newint != oldint and newint % 10 == 0: # report temp
-				oldint=int(time.time() - time_state)
-				print(f"T:{tint}")
-				logstate(bath=bath,pump=pump,hand_log=hand_log)
+		# ---- Temperature handling ----
+		if prev_temp is None or temp != prev_temp:
+			print(f"Setting temp to {temp}. Currently {bath.temp_get_int()}", file=sys.stderr)
+			bath.temp_set(temp)
 
-		print(f"Temp has reached {tint} deg C", file=sys.stderr)
-	
-		# Wait a couple minutes to account for overshoot
-		print(f"Waiting {timeinterval/60:.1f} minutes...", file=sys.stderr)
-		time.sleep(timeinterval)
-		# set bath temperature persistently
-		time_state=time.time()
-		
-		# set pressure persistently
-		print(f"Setting press to {pres}", file=sys.stderr)
-		pump.press_set(pres)
-		while not pump.press_get() == pres: 
-			newint = int(time.time() - time_state)
-			if newint != oldint and newint % 10 == 0: # report temp
-				oldint=int(time.time() - time_state)
-				try:
-					pre=pump.press_get()
-					print(f"P:{pre}")
-				except IndexError:
-					print(f"can't read pressure. set to {pres}")
+			time_state = time.time()
+			tint = bath.temp_get_int()
+			while not tint == temp:
+				tint = bath.tint()
+				newint = int(time.time() - time_state)
+				if newint != oldint and newint % 10 == 0:
+					oldint = int(time.time() - time_state)
+					print(f"T: {tint} °C")
+					logstate(bath=bath, pump=pump, hand_log=hand_log)
 
-		print(f"Pressure reached: {pres}", file=sys.stderr)
-		
-		# wait data for the prescribed period
-		print(f"Waiting {timeinterval/60:.1f} minutes...", file=sys.stderr)
-		time.sleep(timeinterval)  
+			if temp_wait > 0:
+				print(f"Waiting additional {temp_wait} s for temperature stabilization", file=sys.stderr)
+				time.sleep(temp_wait)
+		else:
+			print(f"Temperature unchanged ({temp} °C), skipping wait", file=sys.stderr)
+		prev_temp = temp
 
-		# log state before taking spectra
+		# ---- Pressure handling ----
+		if prev_press is None or pres != prev_press:
+			print(f"Setting pressure to {pres} psi", file=sys.stderr)
+			pump.press_set(pres)
+
+			time_state = time.time()
+			while not pump.press_get() == pres:
+				newint = int(time.time() - time_state)
+				if newint != oldint and newint % 10 == 0:
+					oldint = int(time.time() - time_state)
+					try:
+						pre = pump.press_get()
+						print(f"P: {pre} psi")
+					except IndexError:
+						print(f"Can't read pressure. Set to {pres} psi")
+
+			if press_wait > 0:
+				print(f"Waiting additional {press_wait} s for pressure stabilization", file=sys.stderr)
+				time.sleep(press_wait)
+		else:
+			print(f"Pressure unchanged ({pres} psi), skipping wait", file=sys.stderr)
+		prev_press = pres
+
+		# Log state before taking spectra
 		logstate(bath=bath,pump=pump,hand_log=hand_log,spectrum=False)
 
-		# take spectra, running spectro_and_led.py
+		# Take 3 spectra, each with a unique filename so they do not overwrite
 		ipres = int(pres)
 		itint = f"{tint:.1f}"
-		# run spectro_and_led.py, saving spectra inside experiment folder
-		ipres = int(pres)
-		itint = f"{tint:.1f}"
-
-		# take 3 spectra, each with a unique filename so they do not overwrite
 		for j in range(3):
-			# create a unique filename: timestamp with microseconds + index
+			# Create a unique filename: timestamp with microseconds + index
 			spec_ts = datetime.now().strftime("%Y%m%dT%H%M%S%f")
 			spec_filename = os.path.join(
 				experiment_folder,
 				f"spectrum_{spec_ts}_idx{j+1}_P{ipres}_T{itint}.tsv"
 			)
 
-			# call spectro_and_led.py with the full output filename
+			# Call spectro_and_led.py with the full output filename
 			scommand = (
 				f'python3 /Users/haddock/repos/spectackler2/spectro_and_led.py '
 				f'-w -e "{spec_filename}" -t 1000'

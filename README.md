@@ -2,6 +2,9 @@
 
 This is a stripped down clone of the octopode [spectackler repository](https://github.com/octopode/spectackler) for taking spectrophotometric measurements under pressure and temperature control.
 
+Currently all these scripts must be run from within the repository directory saved on your local computer. 
+e.g., to run `cubette-mini.py` type `./cubette-mini.py` in the terminal from within the spectackler2 repository.
+
 ## Temperature and pressure control script
 
 `cubette-mini.py` automates the control of a **Thermo NESLAB RTE10 water bath** and an **ISCO 260D syringe pump** according to a defined temperature/pressure program. It records all measured data and takes spectral measurements using an **OceanOptics USB2000 spectrometer**. The main parent code from `spectackler` is `viscotheque_lite.py`. 
@@ -15,12 +18,12 @@ The program:
 
 ### Notes ###
 * Ensure both instruments are powered ON and connected before starting
-    * Wait a few seconds after powering on the water bath to press COMPUTER to set up remote control, otherwise it might shut itself off...
-    * Turn on both the syringe pump and attached pump controller. The default controller is 6
+    * Run `bathtest.py` in the terminal and turn the bath on with `bath.on(True)`, then power on the bath, and then press COMPUTER to set up remote control.
+    * Power on both the syringe pump and attached pump controller, and press RUN on the controller to start the pump. Ensure the baud rate is 9600 and the unit ID is 6 (default).
 
 ## Configuration ##
 
-`config.py` contains serial port assignments for the water bath and syringe pump, along with the statefile path. Adjust the path to the statefile containing the experimental matrix you want to test. The input parameters for the experiment are input via this statefile, and should be a `.tsv` file with Press (set pressure), Temp (set temperature), and Time (wait time between steps, in seconds) as columns.
+`config.py` contains serial port assignments for the water bath and syringe pump, along with the statefile path. Adjust the path to the statefile containing the experimental matrix you want to test. The input parameters for the experiment are input via this statefile, and should be a `.tsv` file with Press (set pressure), Temp (set temperature), Press_time (wait time between pressure steps, in seconds), and Temp_time (wait time between temperature steps, in seconds) as columns.
 
 ## Control modules ##
 * `neslabrte.py`: NESLAB RTE10 water bath controller (see octopode [spectackler](https://github.com/octopode/spectackler))
@@ -50,20 +53,33 @@ To enable LED control from Python, upload this sketch to your Arduino using the 
 
 ```cpp
 const int ledPin = 9;
+const int ledPinDirect = 10;
 int inByte;
 
 void setup() {
+  // put your setup code here, to run once:
   Serial.begin(9600);
   pinMode(ledPin, OUTPUT);
+  pinMode(ledPinDirect, OUTPUT);
+  digitalWrite(ledPin, HIGH);
+  digitalWrite(ledPinDirect, LOW);
 }
 
 void loop() {
+  // put your main code here, to run repeatedly:
   if (Serial.available()) {
-    inByte = Serial.read();
-    switch (inByte) {
-      case `0`: digitalWrite(ledPin, LOW); break;
-      case `1`: digitalWrite(ledPin, HIGH); break;
-    }
+    // get incoming byte:
+  inByte = Serial.read();
+  switch (inByte) {
+    case '0':
+      digitalWrite(ledPin, LOW);
+      digitalWrite(ledPinDirect, HIGH);
+      break;
+    case '1':
+      digitalWrite(ledPin,HIGH);
+      digitalWrite(ledPinDirect, LOW);
+      break;
+  }
   }
 }
 ```
