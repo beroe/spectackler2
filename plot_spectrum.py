@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-Plot fluorescence spectra from .tsv files.
+Plot fluorescence spectra from .tsv files with optional blank/dark subtraction.
 
-Usage:
+Usage examples:
   python plot_spectrum.py                     # plots all spectrum_*.tsv files in current directory
+  python plot_spectrum.py --blank blank.tsv    # subtract blanks for all spectrum_*.tsv files in current directory
   python plot_spectrum.py -f spectrum_*.tsv   # plot a single spectrum file
   python plot_spectrum.py -d /path/to/dir     # plot spectra in a specific directory
   python plot_spectrum.py --gif output.gif    # export all spectra as a GIF
   python plot_spectrum.py --limit 400 500     # restrict x-axis wavelength range
+  python plot_spectrum.py -f spectrum_*.tsv --blank blank.tsv --dark dark.tsv # subtract blanks for a single spectrum file
 
 File name format:
   spectrum_20251028T171525855534_idx3_P10_T15.0.tsv
@@ -23,6 +25,34 @@ import numpy as np
 import os
 from pathlib import Path
 import re
+
+# ---------------------- NEW FUNCTION ----------------------
+def subtract_blanks(data, blank_path=None, dark_path=None):
+    """Subtract dark and blank spectra (interpolated) from sample data."""
+    corrected = data.copy()
+
+    # --- Subtract dark spectrum (LED off) ---
+    if dark_path and os.path.exists(dark_path):
+        dark = pd.read_csv(dark_path, sep="\t")
+        dark.columns = [c.strip() for c in dark.columns]
+        dark["Wavelength"] = pd.to_numeric(dark["Wavelength"], errors="coerce")
+        dark["Intensity"] = pd.to_numeric(dark["Intensity"], errors="coerce")
+        dark = dark.dropna()
+        dark_interp = np.interp(corrected["Wavelength"], dark["Wavelength"], dark["Intensity"])
+        corrected["Intensity"] -= dark_interp
+
+    # --- Subtract blank spectrum (solvent/seawater) ---
+    if blank_path and os.path.exists(blank_path):
+        blank = pd.read_csv(blank_path, sep="\t")
+        blank.columns = [c.strip() for c in blank.columns]
+        blank["Wavelength"] = pd.to_numeric(blank["Wavelength"], errors="coerce")
+        blank["Intensity"] = pd.to_numeric(blank["Intensity"], errors="coerce")
+        blank = blank.dropna()
+        blank_interp = np.interp(corrected["Wavelength"], blank["Wavelength"], blank["Intensity"])
+        corrected["Intensity"] -= blank_interp
+
+    return corrected
+# ----------------------------------------------------------
 
 def compute_gp(df):
     """Compute Generalized Polarization (GP) and return GP plus 440/490 nm points."""
@@ -41,13 +71,16 @@ def extract_metadata(filename):
     timestamp, pressure, temp = m.groups()
     return timestamp, float(pressure), float(temp)
 
-def plot_spectrum(ax, spectrum_path, limit=None, y_max=None):
+def plot_spectrum(ax, spectrum_path, limit=None, y_max=None, blank_path=None, dark_path=None):
     """Plot a single spectrum with GP, pressure, and temperature info."""
     data = pd.read_csv(spectrum_path, sep="\t")
     data.columns = [c.strip() for c in data.columns]
     data["Wavelength"] = pd.to_numeric(data["Wavelength"], errors="coerce")
     data["Intensity"] = pd.to_numeric(data["Intensity"], errors="coerce")
     data = data.dropna()
+
+    # --- Apply blank and dark subtraction ---
+    data = subtract_blanks(data, blank_path, dark_path)
 
     gp, p440, p490 = compute_gp(data)
     ts, pressure, temp = extract_metadata(spectrum_path)
@@ -56,7 +89,7 @@ def plot_spectrum(ax, spectrum_path, limit=None, y_max=None):
         data = data[(data["Wavelength"] >= limit[0]) & (data["Wavelength"] <= limit[1])]
 
     ax.clear()
-    ax.plot(data["Wavelength"], data["Intensity"], color="blue", label="Spectrum")
+    ax.plot(data["Wavelength"], data["Intensity"], color="blue", label="Corrected Spectrum")
     ax.scatter(
         [p440[0], p490[0]],
         [p440[1], p490[1]],
@@ -87,6 +120,8 @@ def main():
     parser.add_argument("--limit", nargs=2, type=float, metavar=("MIN", "MAX"),
                         help="Restrict wavelength range (e.g., 400 500)")
     parser.add_argument("--gif", help="Export all spectra in the directory as a GIF file")
+    parser.add_argument("--blank", help="Path to blank (solvent/seawater) .tsv file for subtraction")
+    parser.add_argument("--dark", help="Path to dark (LED off) .tsv file for subtraction")
     args = parser.parse_args()
 
     # Default to current directory if none given
@@ -99,7 +134,8 @@ def main():
             print(f"❌ File not found: {args.file}")
             return
         fig, ax = plt.subplots(figsize=(8, 5))
-        plot_spectrum(ax, args.file, limit=args.limit)
+        plot_spectrum(ax, args.file, limit=args.limit,
+                      blank_path=args.blank, dark_path=args.dark)
         plt.tight_layout()
         plt.show()
         return
@@ -131,7 +167,8 @@ def main():
         import imageio.v2 as imageio
         frames = []
         for f in spectra_files:
-            plot_spectrum(ax, f, limit=args.limit, y_max=y_max)
+            plot_spectrum(ax, f, limit=args.limit, y_max=y_max,
+                          blank_path=args.blank, dark_path=args.dark)
             fig.canvas.draw()
             buf = np.asarray(fig.canvas.buffer_rgba())
             frames.append(buf.copy())
@@ -142,7 +179,8 @@ def main():
     # === INTERACTIVE SCROLL MODE ===
     print("➡️  Use → / ← to scroll through spectra. Close window to quit.")
     index = 0
-    plot_spectrum(ax, spectra_files[index], limit=args.limit, y_max=y_max)
+    plot_spectrum(ax, spectra_files[index], limit=args.limit, y_max=y_max,
+                  blank_path=args.blank, dark_path=args.dark)
     plt.tight_layout()
 
     def on_key(event):
@@ -153,7 +191,8 @@ def main():
             index = (index - 1) % len(spectra_files)
         else:
             return
-        plot_spectrum(ax, spectra_files[index], limit=args.limit, y_max=y_max)
+        plot_spectrum(ax, spectra_files[index], limit=args.limit, y_max=y_max,
+                      blank_path=args.blank, dark_path=args.dark)
         plt.draw()
 
     fig.canvas.mpl_connect("key_press_event", on_key)
