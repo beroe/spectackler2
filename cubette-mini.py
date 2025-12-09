@@ -56,6 +56,7 @@ def logstate(bath=None, pump=None, hand_log=None, spectrum=False):
 opt = parse_args()
 
 delaytime = 60  # seconds between spectral measurements
+n_reps = 1 # number of spectra measured per P/T step
 
 # read statefile
 print(f"Reading states from {stateFILE}", file=sys.stderr)
@@ -164,7 +165,7 @@ with open(file_log, 'a+', buffering=1) as hand_log:
 
         ipres = int(pres)
         itint = f"{tint:.1f}"
-        for j in range(3):
+        for j in range(1):
             spec_ts = datetime.now().strftime("%Y%m%dT%H%M%S%f")
             spec_filename = os.path.join(
                 experiment_folder,
@@ -176,11 +177,14 @@ with open(file_log, 'a+', buffering=1) as hand_log:
                 f'-w -e "{spec_filename}" -t 1000'
             )
 
-            print(f"Taking spectrum {j+1}", file=sys.stderr)
+            print(f"Taking spectrum {j+1}/{n_reps}", file=sys.stderr)
             logstate(bath=bath, pump=pump, hand_log=hand_log, spectrum=True)
             subprocess.run(scommand, bufsize=1, shell=True)
-            time.sleep(delaytime)
             logstate(bath=bath, pump=pump, hand_log=hand_log, spectrum=False)
+            
+            # wait 60s if taking multiple measurements
+            if n_reps > 1 and j < n_reps - 1:
+                time.sleep(delaytime)
 
     # shut down hardware
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
