@@ -10,7 +10,7 @@ e.g., to run `cubette-mini.py` type `./cubette-mini.py` in the terminal from wit
 `cubette-mini.py` automates the control of a **Thermo NESLAB RTE10 water bath** and an **ISCO 260D syringe pump** according to a defined temperature/pressure program. It records all measured data and takes spectral measurements using an **OceanOptics USB2000 spectrometer**. The main parent code from `spectackler` is `viscotheque_lite.py`. 
 
 The program:
-1. Reads a temperature/pressure schedule from a statefile (defined in `config.py`)
+1. Reads a temperature/pressure schedule from a statefile (defined in `spectro_config.py`)
 2. Iteratively sets each target temperature and pressure
 3. Waits for both instroments to stabilize
 4. Runs an external spectral acquisition script (`spectro_and_led.py`) to take 3 spectrum measurements at each pressure/temperature step, which saves a spectrum for each measurement labeled with the current temperature and pressure
@@ -23,7 +23,7 @@ The program:
 
 ## Configuration ##
 
-`config.py` contains serial port assignments for the water bath and syringe pump, along with the statefile path. Adjust the path to the statefile containing the experimental matrix you want to test. The input parameters for the experiment are input via this statefile, and should be a `.tsv` file with Press (set pressure), Temp (set temperature), Press_time (wait time between pressure steps, in seconds), and Temp_time (wait time between temperature steps, in seconds) as columns.
+`spectro_config.py` contains serial port assignments for the water bath and syringe pump, along with the statefile path. Adjust the path to the statefile containing the experimental matrix you want to test. The input parameters for the experiment are input via this statefile, and should be a `.tsv` file with Press (set pressure), Temp (set temperature), Press_time (wait time between pressure steps, in seconds), and Temp_time (wait time between temperature steps, in seconds) as columns.
 
 ## Control modules ##
 * `neslabrte.py`: NESLAB RTE10 water bath controller (see octopode [spectackler](https://github.com/octopode/spectackler))
@@ -33,7 +33,7 @@ The program:
 ## LED and Spectrometer control script ##
 
 `spectro_and_led.py` coordinates an **Arduino-controlled LED** with an **OceanOptics USB2000 spectrometer** to capture spectra under controlled illumination. It performs measurements by:
-1. Turning on the lED via serial command to the Arduino
+1. Turning on the LED via serial command to the Arduino
 2. Capturing a spectrum using the `seabreeze` Python library
 3. Turning off the LED after the spectrum is captured
 4. Saving the data to a time-stamped `.tsv` file (`-w, -write` option) or to the console (default)
@@ -88,6 +88,7 @@ void loop() {
 * `bathtest.py`
 * `pumptest.py`
 * `iscotest.py`
+
 See octopode [spectackler](https://github.com/octopode/spectackler).
 
 
