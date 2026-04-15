@@ -26,7 +26,10 @@ import os
 from pathlib import Path
 import re
 
-# ---------------------- NEW FUNCTION ----------------------
+# FUNCTIONS
+
+# Blank subtraction
+
 def subtract_blanks(data, blank_path=None, dark_path=None):
     """Subtract dark and blank spectra (interpolated) from sample data."""
     corrected = data.copy()
@@ -52,8 +55,8 @@ def subtract_blanks(data, blank_path=None, dark_path=None):
         corrected["Intensity"] -= blank_interp
 
     return corrected
-# ----------------------------------------------------------
 
+# GP calculation - exact 440 + 490nm calculation
 def compute_gp(df):
     """Compute Generalized Polarization (GP) and return GP plus 440/490 nm points."""
     wl_440 = (df["Wavelength"] - 440).abs().idxmin()
@@ -62,6 +65,7 @@ def compute_gp(df):
     gp = (I440 - I490) / (I440 + I490)
     return gp, (440, I440), (490, I490)
 
+# Extract time, pressure, and temp from file name
 def extract_metadata(filename):
     """Extract timestamp, pressure (psi), and temperature (°C) from filename."""
     name = Path(filename).stem
@@ -71,6 +75,7 @@ def extract_metadata(filename):
     timestamp, pressure, temp = m.groups()
     return timestamp, float(pressure), float(temp)
 
+# Plot the spectrum
 def plot_spectrum(ax, spectrum_path, limit=None, y_max=None, blank_path=None, dark_path=None):
     """Plot a single spectrum with GP, pressure, and temperature info."""
     data = pd.read_csv(spectrum_path, sep="\t")
@@ -85,6 +90,7 @@ def plot_spectrum(ax, spectrum_path, limit=None, y_max=None, blank_path=None, da
     gp, p440, p490 = compute_gp(data)
     ts, pressure, temp = extract_metadata(spectrum_path)
 
+    # Set x-axis limits (optional)
     if limit:
         data = data[(data["Wavelength"] >= limit[0]) & (data["Wavelength"] <= limit[1])]
 
@@ -113,6 +119,7 @@ def plot_spectrum(ax, spectrum_path, limit=None, y_max=None, blank_path=None, da
     ax.legend()
     ax.grid(True)
 
+# Main function
 def main():
     parser = argparse.ArgumentParser(description="Plot fluorescence spectra (.tsv).")
     parser.add_argument("-f", "--file", help="Path to a single spectrum_*.tsv file")
@@ -131,7 +138,7 @@ def main():
     # === SINGLE FILE MODE ===
     if args.file:
         if not os.path.exists(args.file):
-            print(f"❌ File not found: {args.file}")
+            print(f"File not found: {args.file}")
             return
         fig, ax = plt.subplots(figsize=(8, 5))
         plot_spectrum(ax, args.file, limit=args.limit,
@@ -146,10 +153,10 @@ def main():
          if f.startswith("spectrum_") and f.endswith(".tsv")]
     )
     if not spectra_files:
-        print("❌ No spectrum_*.tsv files found in the directory.")
+        print("No spectrum_*.tsv files found in the directory.")
         return
 
-    print(f"✅ Loaded {len(spectra_files)} spectra from {args.dir}")
+    print(f"Loaded {len(spectra_files)} spectra from {args.dir}")
 
     # Compute shared y-axis limit across all spectra
     y_max = 0
@@ -163,7 +170,7 @@ def main():
 
     # === GIF EXPORT MODE ===
     if args.gif:
-        print(f"🎞️  Generating GIF: {args.gif} ...")
+        print(f"Generating GIF: {args.gif} ...")
         import imageio.v2 as imageio
         frames = []
         for f in spectra_files:
@@ -173,11 +180,11 @@ def main():
             buf = np.asarray(fig.canvas.buffer_rgba())
             frames.append(buf.copy())
         imageio.mimsave(args.gif, frames, fps=2)
-        print(f"✅ GIF saved as {args.gif}")
+        print(f"GIF saved as {args.gif}")
         return
 
     # === INTERACTIVE SCROLL MODE ===
-    print("➡️  Use → / ← to scroll through spectra. Close window to quit.")
+    print("Use → / ← to scroll through spectra. Close window to quit.")
     index = 0
     plot_spectrum(ax, spectra_files[index], limit=args.limit, y_max=y_max,
                   blank_path=args.blank, dark_path=args.dark)
