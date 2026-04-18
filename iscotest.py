@@ -12,7 +12,7 @@ def gg2psi(gg_str):
     "get PSI value from G& get all status string"
     return float(gg_str.decode("utf-8").split('=')[1].split(',')[0]) / 5
 
-pump = isco.ISCOController(port="/dev/cu.usbserial-FT4IVKAO0",source=0,dest=1)
+pump = isco.ISCOController(port="/dev/cu.usbserial-FT4IVKAO0",source=0,dest=6)
 
 print('''Example commands:
    press_set()
