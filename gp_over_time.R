@@ -19,7 +19,7 @@
 #     - Computes mean GP when taking triplicate measurements
 # - Optional fixed GP axis limits
 
-# Edited: 12/17/2025
+# Edited: 4/17/26
 # ──────────────────────────────────────────────────────────────────────────
 
 suppressPackageStartupMessages({
@@ -36,10 +36,11 @@ suppressPackageStartupMessages({
 # PARAMETERS TO EDIT
 # ============================================================
 
-data_dir   <- "."
-sample_name <- "Redcydip_D1369d10_041326"
+data_dir   <- "."                        # Move to directory with experiment + blank spectra
+sample_name <- "Llyria_D1442d4_041726"  # Change sample name/date
 time_unit  <- "mins"
 
+# Blank subtraction?
 subtract_blank <- TRUE
 
 # Measurements per step
@@ -52,7 +53,7 @@ n_measurements_per_step <- 3    # 1 or 3
 # - "sg_peaks" = SG-smoothed peak-based GP 
 GP_method <- "sg_band"
 
-# Savitzky–Golay parameters (used only if GP_method == "sg_exact")
+# Savitzky–Golay parameters
 sg_poly_order <- 3       # polynomial order
 sg_window     <- 101     # window length (will be forced to odd)
 
@@ -69,7 +70,7 @@ min_wl       <- 390
 thres_intens <- 1
 
 # Optional fixed GP axis scale, set to NA if don't want this
-GP_ymin <- -0.6
+GP_ymin <- -0.7
 GP_ymax <- 0.1
 #GP_ymin <- NA
 #GP_ymax <- NA

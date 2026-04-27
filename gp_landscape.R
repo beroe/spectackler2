@@ -37,15 +37,15 @@ suppressPackageStartupMessages({
 # PARAMETERS (edit these between experiments)
 # ============================================================
 
-sample_name <- "Redcydip_D1369d10_041326"
-dir_data <- "."   # Move to working directory
-pat_data <- "^spectrum_.*\\.tsv$"
+sample_name <- "Llyria_D1442d4_041726"   # Change sample name/date
+dir_data <- "."                          # Move to directory with experiment + blank spectra
+pat_data <- "^spectrum_.*\\.tsv$"        # Pattern to search for spectrum files
 
 live_mode   <- FALSE      # TRUE = live updating
 make_gif    <- FALSE      # TRUE = also export GIF
-refresh_sec <- 5
+refresh_sec <- 5          # Time between refresh for live mode
 
-# Blank subtraction (LED ON, water only)
+# Blank subtraction (LED ON, Cuvette with ASW only, use same integration time)
 subtract_blank <- TRUE
 blank_pattern <- "^blank_.*\\.tsv$"
 
@@ -56,7 +56,7 @@ blank_pattern <- "^blank_.*\\.tsv$"
 # - "sg_peaks" = SG-smoothed peak-based GP 
 GP_method <- "sg_band"
 
-# Savitzky–Golay parameters (used only if GP_method == "sg_exact")
+# Savitzky–Golay parameters
 sg_poly_order <- 3       # polynomial order
 sg_window     <- 101     # window length (will be forced to odd)
 
