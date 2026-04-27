@@ -26,6 +26,7 @@ def parse_args():
 	parser.add_argument('-i', '--invert', action='store_false', help='Normal LED control logic (default: 0=on, 1=off)', default=True)
 	parser.add_argument('-e','--extra',type=str, default="",help='append to file name')
 	parser.add_argument('-t', '--time', type=int, default=1000, help='Integration time in milliseconds (default: 1000)')
+	parser.add_argument('-d', '--delay', type=int, default=0, help='Wait before taking spectrum')
 
 	return parser.parse_args()
 
@@ -59,7 +60,8 @@ async def switch_led(state="1", debug=False,invert=False):
 	except serial.SerialException as e:
 		print(f"Error: {e}", file=sys.stderr)
   
-async def capture_spectrum(integration_time=1000, debug=False): # in milliseconds
+async def capture_spectrum(integration_time=1000, debug=False, delay=0): # in milliseconds
+
 	devices = sb.list_devices()
 	if len(devices) == 0:
 		raise IOError("""No Ocean Optics devices found.""")
@@ -69,7 +71,9 @@ async def capture_spectrum(integration_time=1000, debug=False): # in millisecond
 	spec = sb.Spectrometer(devices[0])
 	if debug:
 		print(f"Device info: {spec}", file=sys.stderr)
-
+	if delay:
+		print(f"Waiting {delay} seconds before starting", file=sys.stderr)
+		time.sleep(delay)
 	print(f"Taking spectrum with {integration_time} ms integration time", file=sys.stderr)
 	spec.integration_time_micros(int(integration_time*1000))
 	x = spec.wavelengths()
@@ -88,7 +92,7 @@ async def main():
 		
 		# Capture spectrum if enabled
 		myA = None
-		myA = await capture_spectrum(integration_time=args.time, debug=args.debug)
+		myA = await capture_spectrum(integration_time=args.time, debug=args.debug,delay=args.delay)
 		if not args.write:
 			for a,b in zip(myA[0], myA[1]):
 				print(f"{a:.2f}\t{b:.2f}")
