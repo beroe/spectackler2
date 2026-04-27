@@ -75,6 +75,7 @@ async def capture_spectrum(integration_time=1000, debug=False, delay=0): # in mi
 	if delay:
 		print(f"Waiting {delay} seconds before starting", file=sys.stderr)
 		time.sleep(delay)
+		print('\a',file=sys.stderr)
 	print(f"Taking spectrum with {integration_time} ms integration time", file=sys.stderr)
 	spec.integration_time_micros(int(integration_time*1000))
 	x = spec.wavelengths()
