@@ -12,6 +12,7 @@ import asyncio
 import glob
 import os
 import sys
+import time
 import argparse
 import seabreeze.spectrometers as sb
 import seabreeze
