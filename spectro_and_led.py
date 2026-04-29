@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """ Turn on LED with serial command, then run brizzy to save one spectrum, then turn off LED.
+v 0.3 add repeat and delay before capture
 v 0.2 autoreveal arduino port
 Requirements:
 pip3 install pyserial
@@ -28,6 +29,7 @@ def parse_args():
 	parser.add_argument('-e','--extra',type=str, default="",help='append to file name')
 	parser.add_argument('-t', '--time', type=int, default=1000, help='Integration time in milliseconds (default: 1000)')
 	parser.add_argument('-d', '--delay', type=int, default=0, help='Wait before taking spectrum')
+	parser.add_argument('-r', '--repeat', type=int, default=1, help='Number of times to repeat the measurement max 100 (default: 1)')
 
 	return parser.parse_args()
 
@@ -75,7 +77,7 @@ async def capture_spectrum(integration_time=1000, debug=False, delay=0): # in mi
 	if delay:
 		print(f"Waiting {delay} seconds before starting", file=sys.stderr)
 		time.sleep(delay)
-		print('\a',file=sys.stderr)
+		print('\a',file=sys.stderr) # makes a beep when delay is over
 	print(f"Taking spectrum with {integration_time} ms integration time", file=sys.stderr)
 	spec.integration_time_micros(int(integration_time*1000))
 	x = spec.wavelengths()
@@ -88,37 +90,43 @@ async def main():
 	args = parse_args()
 	
 	try:
-		# Turn on the LED
-		await switch_led("1", debug=args.debug, invert=args.invert)
-		await asyncio.sleep(0.1)  # LED stabilization time
-		
-		# Capture spectrum if enabled
-		myA = None
-		myA = await capture_spectrum(integration_time=args.time, debug=args.debug,delay=args.delay)
-		if not args.write:
-			for a,b in zip(myA[0], myA[1]):
-				print(f"{a:.2f}\t{b:.2f}")
-		
-		await asyncio.sleep(0.1)  # LED stabilization time
-		# Turn off the LED
-		await switch_led("0", debug=args.debug, invert=args.invert)
-		
-		# Write to file if enabled and spectrum was captured
-		timestamp = datetime.now().strftime("%Y_%b_%d+%H_%M_%S")
-		if os.path.isabs(args.extra):
-			FileName = args.extra
-			# ensure directory exists
-			os.makedirs(os.path.dirname(FileName), exist_ok=True)
-		else:
-			FileName = os.path.join("data", f"spectrum_{timestamp}_{args.extra}.tsv")
-			os.makedirs("data", exist_ok=True)
+		for i in range(args.repeat):
+  		# Turn on the LED if not repeating.
+			if args.repeat ==1:
+				await switch_led("1", debug=args.debug, invert=args.invert)
+				await asyncio.sleep(0.1)  # LED stabilization time
+			
+			# Capture spectrum if enabled
+			myA = None
+			myA = await capture_spectrum(integration_time=args.time, debug=args.debug,delay=args.delay)
+			if not args.write and args.repeat == 1 and myA is not None:
+				for a,b in zip(myA[0], myA[1]):
+					print(f"{a:.2f}\t{b:.2f}")
+			
+			if args.repeat == 1:
+				await asyncio.sleep(0.1)  # LED stabilization time
+				# Turn off the LED
+				await switch_led("0", debug=args.debug, invert=args.invert)
+			
+			# Write to file if enabled and spectrum was captured
+			timestamp = datetime.now().strftime("%Y_%b_%d+%H_%M_%S")
+			if os.path.isabs(args.extra):
+				FileName = args.extra
+				# ensure directory exists
+				os.makedirs(os.path.dirname(FileName), exist_ok=True)
+			else:
+				if args.repeat > 1:
+					FileName = os.path.join("data", f"spectrum_{timestamp}_{args.extra}_R{i+1:02d}.tsv")
+				else:
+					FileName = os.path.join("data", f"spectrum_{timestamp}_{args.extra}.tsv")
+				os.makedirs("data", exist_ok=True)
 
-		if args.write and myA is not None:
-			with open(FileName, "w") as f:
-				f.write("Wavelength\tIntensity\n")
-				for a, b in zip(myA[0], myA[1]):
-					f.write(f"{a:.2f}\t{b:.2f}\n")
-			print(f"Wrote spectrum to {FileName}", file=sys.stderr)
+			if args.write and myA is not None:
+				with open(FileName, "w") as f:
+					f.write("Wavelength\tIntensity\n")
+					for a, b in zip(myA[0], myA[1]):
+						f.write(f"{a:.2f}\t{b:.2f}\n")
+				print(f"Wrote spectrum to {FileName}", file=sys.stderr)
 					
 	except Exception as e:
 		print(f"Error in main loop: {e}", file=sys.stderr)
