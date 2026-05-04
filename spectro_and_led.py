@@ -7,6 +7,17 @@ v 0.2 autoreveal arduino port
 Requirements:
 pip3 install pyserial
 pip3 install seabreeze
+TODO: thermoelectric cooling control, if supported by spectrometer
+Approach: 
+  tec = spec.f.thermo_electric
+                                                                                
+  tec.enable_tec(True)
+  tec.set_temperature_setpoint_degrees_celsius(-10.0)                           
+                  
+  import time
+  time.sleep(2)
+  print(f"TEC temperature: {tec.read_temperature_degrees_celsius():.1f} °C")    
+ 
 """
 import serial
 import asyncio
@@ -30,6 +41,7 @@ def parse_args():
 	parser.add_argument('-t', '--time', type=int, default=1000, help='Integration time in milliseconds (default: 1000)')
 	parser.add_argument('-d', '--delay', type=int, default=0, help='Wait before taking spectrum')
 	parser.add_argument('-r', '--repeat', type=int, default=1, help='Number of times to repeat the measurement max 100 (default: 1)')
+	parser.add_argument('-c', '--cool', type=float, default=-1, help='TEC setpoint in °C for QE spectrometers (default: -1, disabled)')
 
 	return parser.parse_args()
 
@@ -63,17 +75,29 @@ async def switch_led(state="1", debug=False,invert=False):
 	except serial.SerialException as e:
 		print(f"Error: {e}", file=sys.stderr)
   
-async def capture_spectrum(integration_time=1000, debug=False, delay=0): # in milliseconds
+def set_cooling(spec, setpoint, debug=False):
+	if 'QE' not in spec.model:
+		if debug:print(f"Cooling not supported for {spec.model}, skipping.", file=sys.stderr)
+		return
+	tec = spec.f.thermo_electric
+	tec.enable_tec(True)
+	tec.set_temperature_setpoint_degrees_celsius(setpoint)
+	time.sleep(2)
+	actual = tec.read_temperature_degrees_celsius()
+	print(f"TEC setpoint: {setpoint:.1f} °C, current temperature: {actual:.1f} °C", file=sys.stderr)
 
+def find_spectrometer(debug=False):
 	devices = sb.list_devices()
 	if len(devices) == 0:
-		raise IOError("""No Ocean Optics devices found.""")
-	elif debug:
-		print("Found a spectrometer: {}".format(devices[0]),file=sys.stderr)
-	
+		raise IOError("No Ocean Optics devices found.")
+	if debug:
+		print("Found a spectrometer: {}".format(devices[0]), file=sys.stderr)
 	spec = sb.Spectrometer(devices[0])
 	if debug:
 		print(f"Device info: {spec}", file=sys.stderr)
+	return spec
+
+async def capture_spectrum(spec, integration_time=1000, debug=False, delay=0): # in milliseconds
 	if delay:
 		print(f"Waiting {delay} seconds before starting", file=sys.stderr)
 		time.sleep(delay)
@@ -82,23 +106,25 @@ async def capture_spectrum(integration_time=1000, debug=False, delay=0): # in mi
 	spec.integration_time_micros(int(integration_time*1000))
 	x = spec.wavelengths()
 	y = spec.intensities()
-	spec.close()
 	return x, y
 
 async def main():
 	"""Main async function that coordinates LED control and spectrum capture"""
 	args = parse_args()
-	
+
 	try:
+		spec = find_spectrometer(debug=args.debug)
+		if args.cool >= 0:
+			set_cooling(spec, args.cool, debug=args.debug)
 		for i in range(args.repeat):
   		# Turn on the LED if not repeating.
 			if args.repeat ==1:
 				await switch_led("1", debug=args.debug, invert=args.invert)
 				await asyncio.sleep(0.1)  # LED stabilization time
-			
+
 			# Capture spectrum if enabled
 			myA = None
-			myA = await capture_spectrum(integration_time=args.time, debug=args.debug,delay=args.delay)
+			myA = await capture_spectrum(spec, integration_time=args.time, debug=args.debug, delay=args.delay)
 			if not args.write and args.repeat == 1 and myA is not None:
 				for a,b in zip(myA[0], myA[1]):
 					print(f"{a:.2f}\t{b:.2f}")
@@ -128,6 +154,7 @@ async def main():
 						f.write(f"{a:.2f}\t{b:.2f}\n")
 				print(f"Wrote spectrum to {FileName}", file=sys.stderr)
 					
+		spec.close()
 	except Exception as e:
 		print(f"Error in main loop: {e}", file=sys.stderr)
 
