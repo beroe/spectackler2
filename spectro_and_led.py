@@ -2,21 +2,12 @@
 # -*- coding: utf-8 -*-
 
 """ Turn on LED with serial command, then run brizzy to save one spectrum, then turn off LED.
+v 0.4 added temperature control and made delay just at the start
 v 0.3 add repeat and delay before capture
 v 0.2 autoreveal arduino port
 Requirements:
 pip3 install pyserial
 pip3 install seabreeze
-TODO: thermoelectric cooling control, if supported by spectrometer
-Approach: 
-  tec = spec.f.thermo_electric
-                                                                                
-  tec.enable_tec(True)
-  tec.set_temperature_setpoint_degrees_celsius(-10.0)                           
-                  
-  import time
-  time.sleep(2)
-  print(f"TEC temperature: {tec.read_temperature_degrees_celsius():.1f} °C")    
  
 """
 import serial
@@ -76,6 +67,7 @@ async def switch_led(state="1", debug=False,invert=False):
 		print(f"Error: {e}", file=sys.stderr)
   
 def set_cooling(spec, setpoint, debug=False):
+	tec=False
 	if 'QE' not in spec.model:
 		if debug:print(f"Cooling not supported for {spec.model}, skipping.", file=sys.stderr)
 		return
@@ -85,6 +77,7 @@ def set_cooling(spec, setpoint, debug=False):
 	time.sleep(2)
 	actual = tec.read_temperature_degrees_celsius()
 	print(f"TEC setpoint: {setpoint:.1f} °C, current temperature: {actual:.1f} °C", file=sys.stderr)
+	return tec
 
 def find_spectrometer(debug=False):
 	devices = sb.list_devices()
@@ -97,11 +90,8 @@ def find_spectrometer(debug=False):
 		print(f"Device info: {spec}", file=sys.stderr)
 	return spec
 
-async def capture_spectrum(spec, integration_time=1000, debug=False, delay=0): # in milliseconds
-	if delay:
-		print(f"Waiting {delay} seconds before starting", file=sys.stderr)
-		time.sleep(delay)
-		print('\a',file=sys.stderr) # makes a beep when delay is over
+async def capture_spectrum(spec, integration_time=1000, debug=False): # in milliseconds
+	print('\a',file=sys.stderr) # makes a beep when delay is over
 	print(f"Taking spectrum with {integration_time} ms integration time", file=sys.stderr)
 	spec.integration_time_micros(int(integration_time*1000))
 	x = spec.wavelengths()
@@ -111,11 +101,17 @@ async def capture_spectrum(spec, integration_time=1000, debug=False, delay=0): #
 async def main():
 	"""Main async function that coordinates LED control and spectrum capture"""
 	args = parse_args()
+	tecobj = False
 
 	try:
 		spec = find_spectrometer(debug=args.debug)
 		if args.cool >= 0:
-			set_cooling(spec, args.cool, debug=args.debug)
+			tecobj = set_cooling(spec, args.cool, debug=args.debug)
+
+		if args.delay:
+			print(f"Waiting {args.delay} seconds before starting", file=sys.stderr)
+			time.sleep(args.delay)
+	
 		for i in range(args.repeat):
   		# Turn on the LED if not repeating.
 			if args.repeat ==1:
@@ -124,7 +120,7 @@ async def main():
 
 			# Capture spectrum if enabled
 			myA = None
-			myA = await capture_spectrum(spec, integration_time=args.time, debug=args.debug, delay=args.delay)
+			myA = await capture_spectrum(spec, integration_time=args.time, debug=args.debug)
 			if not args.write and args.repeat == 1 and myA is not None:
 				for a,b in zip(myA[0], myA[1]):
 					print(f"{a:.2f}\t{b:.2f}")
@@ -153,7 +149,9 @@ async def main():
 					for a, b in zip(myA[0], myA[1]):
 						f.write(f"{a:.2f}\t{b:.2f}\n")
 				print(f"Wrote spectrum to {FileName}", file=sys.stderr)
-					
+		if tecobj:
+			actual = tecobj.read_temperature_degrees_celsius()
+			print(f"Final temperature: {actual:.1f} °C", file=sys.stderr)
 		spec.close()
 	except Exception as e:
 		print(f"Error in main loop: {e}", file=sys.stderr)
