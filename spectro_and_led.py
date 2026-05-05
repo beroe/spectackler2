@@ -33,6 +33,7 @@ def parse_args():
 	parser.add_argument('-d', '--delay', type=int, default=0, help='Wait before taking spectrum')
 	parser.add_argument('-r', '--repeat', type=int, default=1, help='Number of times to repeat the measurement max 100 (default: 1)')
 	parser.add_argument('-c', '--cool', type=float, default=-1, help='TEC setpoint in °C for QE spectrometers (default: -1, disabled)')
+	parser.add_argument('-l', '--led', action='store_true', help='Turn on LED during spectrum capture (default: off)')
 
 	return parser.parse_args()
 
@@ -114,7 +115,7 @@ async def main():
 	
 		for i in range(args.repeat):
   		# Turn on the LED if not repeating.
-			if args.repeat ==1:
+			if args.repeat == 1 and args.led:
 				await switch_led("1", debug=args.debug, invert=args.invert)
 				await asyncio.sleep(0.1)  # LED stabilization time
 
@@ -125,7 +126,7 @@ async def main():
 				for a,b in zip(myA[0], myA[1]):
 					print(f"{a:.2f}\t{b:.2f}")
 			
-			if args.repeat == 1:
+			if args.repeat == 1 and args.led:
 				await asyncio.sleep(0.1)  # LED stabilization time
 				# Turn off the LED
 				await switch_led("0", debug=args.debug, invert=args.invert)

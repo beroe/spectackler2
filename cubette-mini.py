@@ -174,7 +174,7 @@ with open(file_log, 'a+', buffering=1) as hand_log:
 
             scommand = (
                 f'python3 /Users/haddock/repos/spectackler2/spectro_and_led.py '
-                f'-w -e "{spec_filename}" -t 200' #Adjust -t for integration time (in ms)
+                f'-w -l -e "{spec_filename}" -t 200' #Adjust -t for integration time (in ms)
             )
 
             print(f"Taking spectrum {j+1}/{n_reps}", file=sys.stderr)
