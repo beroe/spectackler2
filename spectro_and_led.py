@@ -97,6 +97,9 @@ async def capture_spectrum(spec, integration_time=1000, debug=False): # in milli
 	spec.integration_time_micros(int(integration_time*1000))
 	x = spec.wavelengths()
 	y = spec.intensities()
+	max_intensity = max(y)
+	max_wavelength = x[y.argmax()]
+	print(f"Max intensity: {max_intensity:.2f} at {max_wavelength:.2f} nm", file=sys.stderr)
 	return x, y
 
 async def main():
