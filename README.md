@@ -91,6 +91,161 @@ void loop() {
 
 See octopode [spectackler](https://github.com/octopode/spectackler).
 
+---
+
+## R plotting and analysis scripts ##
+
+These scripts process the `.tsv` spectral data collected by `cubette-mini.py` and compute **C-Laurdan Generalized Polarization (GP)** — a fluorescence metric for membrane lipid order — across pressure and temperature conditions. Run all scripts from the project root directory (e.g., `Rscript gp_cubette.R`).
+
+### Directory organization ###
+
+The scripts expect input data in `data/` and write all outputs to `figures/` and `results/`. The `figures/` and `results/` subdirectories are created automatically the first time each script runs; only the `data/` tree needs to be set up manually before running.
+
+```
+spectackler2/
+├── data/
+│   ├── raw/
+│   │   ├── <sample_name>/               ← one folder per experiment
+│   │   │   ├── blank_*.tsv              ← blank spectrum (any name starting with blank_)
+│   │   │   ├── spectrum_<ts>_idx<N>_P<psi>_T<temp>.tsv
+│   │   │   └── spectrum_<ts>_idx<N>_P<psi>_T<temp>.tsv  ...
+│   │   └── <another_sample>/
+│   │       └── ...
+│   └── cubette_metadata.xlsx            ← sample metadata (see below)
+│
+├── results/                             ← created by gp_cubette.R
+│   └── sg_band/                         ← one subfolder per GP_method
+│       └── <sample_name>_GP_values_sg_band.csv
+│
+└── figures/                             ← created by the plotting scripts
+    ├── gp_over_time/                    ← gp_cubette.R (plot_over_time)
+    │   └── <sample_name>_GP_over_time_<method_tag>.pdf
+    ├── gp_landscape/                    ← gp_cubette.R (plot_landscape)
+    │   └── <sample_name>_lgp_landscape_<method_tag>.pdf / .gif
+    ├── summary/                         ← gp_summary_figure.R
+    │   └── <sample_name>_summary_sg_band.pdf
+    ├── gp_compare/                      ← gp_species_compare.R
+    │   ├── <prefix>_GPvsPress_allT.pdf
+    │   ├── <prefix>_GPvsTemp_allP.pdf
+    │   └── treatments/
+    │       └── <species>_GPvsPress_allT.pdf  ...
+    └── spectra/                         ← spectrum_golayfilt.R
+        ├── <sample_name>_diagnostic.pdf
+        ├── all_spectra/                 ← when plot_all_steps = TRUE
+        └── ln_decomp/                  ← when show_ln_decomposition = TRUE
+            └── all_spectra/
+```
+
+#### Spectrum file naming ####
+
+`spectro_and_led.py` saves files with the `-e` flag in this format:
+
+```
+spectrum_YYYYMMDDTHHMMSS_idx<N>_P<psi>_T<temp>.tsv
+```
+
+* `YYYYMMDDTHHMMSS` — acquisition timestamp (e.g., `20260408T143022`)
+* `idx<N>` — replicate index within a pressure/temperature step (1, 2, or 3)
+* `P<psi>` — pressure in PSI as an integer (e.g., `P14504`); converted to bar by the scripts
+* `T<temp>` — temperature in °C (e.g., `T5.0`)
+
+Each `.tsv` has two columns: `Wavelength` (nm) and `Intensity`.
+
+The blank spectrum must match the pattern `blank_*.tsv` and be placed in the same folder as the experiment spectra it corresponds to.
+
+#### Script run order ####
+
+`gp_species_compare.R` and `gp_summary_figure.R` both read the GP CSVs produced by `gp_cubette.R` and will error if those files do not exist. The recommended order is:
+
+1. `spectrum_golayfilt.R` — optional diagnostic, can be run on raw data at any time
+2. `gp_cubette.R` — computes GP and writes CSVs and first-pass plots
+3. `gp_summary_figure.R` — per-experiment summary page (requires step 2)
+4. `gp_species_compare.R` — cross-species comparison (requires step 2)
+
+#### `cubette_metadata.xlsx` ####
+
+Required by `gp_cubette.R` (landscape mode only), `gp_summary_figure.R`, and `gp_species_compare.R`. Each row describes one experiment folder. The expected columns are:
+
+| Column | Description |
+|---|---|
+| `file_name` | Experiment folder name in `data/raw/` — must match exactly |
+| `species` | Species name displayed on plots |
+| `sample_no` | Sample identifier (e.g., `D1339bw9`) |
+| `group` | Functional group (`lobate`, `beroid`, `cydippid`, etc.) |
+| `color` | Hex color code for this sample's line/points (e.g., `#1b9e77`); leave blank to auto-assign |
+| `treat` | Treatment applied: `none`, `Protease inhibitor`, or `ProK` |
+| `depth` | Collection depth in meters (used to compute native pressure as `depth × 0.1006 + 1.013` bar) |
+| `temp` | Collection temperature in °C |
+| `depth_fig` | Depth label for figures; use a number, `surface`, or `MBA` (cultured) |
+| `col_loc` | Collection location (text, for summary figure header) |
+| `col_date` | Collection date |
+| `exp_date` | Experiment date |
+| `type` | Tissue type (e.g., `whole animal`, `tissue`) |
+| `text` | Set to `italic` to italicise the species name in the summary figure header |
+
+### `gp_cubette.R` — Main GP analysis ###
+
+The primary analysis script. Reads raw spectrum files from `data/raw/<sample>/`, optionally subtracts a blank spectrum, computes GP for each measurement, and generates up to two plot types per sample:
+
+* **GP over time** (`plot_over_time = TRUE`): Line plot of GP vs. elapsed experiment time, colour-coded by temperature and annotated with pressure at each step. Saves a PDF to `figures/gp_over_time/` and a CSV of per-spectrum GP values to `results/<GP_method>/`.
+* **GP landscape** (`plot_landscape = TRUE`): Pressure/temperature contour heatmap of GP, interpolated using multilevel B-spline approximation (MBA). Optionally annotates the species' native collection depth and temperature with an asterisk. Supports a live-mode refresh during a running experiment and can export an animated GIF showing the landscape build up over time.
+
+**GP calculation methods** (set via `GP_method`):
+* `sg_band` *(default, recommended)*: Applies a Savitzky–Golay smoothing filter, then computes GP from the trapezoid-integrated band averages in the blue (420–460 nm) and green (470–510 nm) emission windows.
+* `lognormal`: Fits two or three asymmetric log-normal peaks (Siano–Metzler) in wavenumber space and computes GP from the blue vs. green fitted peak area ratio. Higher noise per spectrum; not recommended for routine pipeline use.
+
+**Batch processing**: Set `run_all_samples <- TRUE` to process every subfolder in `data/raw/`, or list specific folder names in `samples`.
+
+---
+
+### `gp_species_compare.R` — Cross-species GP comparison ###
+
+Reads pre-computed GP CSVs produced by `gp_cubette.R` and generates comparison plots across multiple samples and species. Requires `gp_cubette.R` to have been run first.
+
+Produces two plots per run:
+* **GP vs. Pressure**: GP averaged (or filtered to a fixed temperature) across pressure steps.
+* **GP vs. Temperature**: GP averaged (or filtered to a fixed pressure) across temperature steps.
+
+Each line represents one sample, coloured by species. A species-coloured asterisk marks each animal's native collection pressure or temperature (from `data/cubette_metadata.xlsx`). Key options:
+* `groups_include`: Restrict plots to one or more functional groups (e.g., `"lobate"`, `"beroid"`, `"cydippid"`), or set to `"all"` to generate both a combined plot and one plot per group.
+* `include_treatments`: When `TRUE`, samples treated with protease inhibitor or ProK are included, with linetype distinguishing treatment from control (treated samples inherit their species' control colour).
+* `avg_mode`: `"all"` averages GP across all temperatures (for the pressure plot) or all pressures (for the temperature plot); `"fixed"` filters to a single target temperature or pressure.
+
+Outputs PDFs to `figures/gp_compare/`. Per-species treatment comparison plots are saved to `figures/gp_compare/treatments/`.
+
+---
+
+### `gp_summary_figure.R` — Per-experiment summary figure ###
+
+Assembles a single portrait-format PDF page per experiment combining metadata, GP landscape, GP over time, and emission spectra. Requires `gp_cubette.R` to have been run first (reads pre-computed GP CSVs; does not recalculate GP).
+
+Each page contains:
+* **Header**: Species name, sample ID, experiment date, collection depth/temperature/location, tissue type, and GP calculation method.
+* **Panel A**: P/T GP landscape heatmap (same MBA interpolation as `gp_cubette.R`), without a colour bar legend.
+* **Panel B**: GP over time coloured by temperature, with pressure labels. Shared GP and temperature colour bar legends are placed between panels A/B and the right margin.
+* **Panel C**: Start and end emission spectra side-by-side, showing raw and SG-smoothed curves with blue and green band regions shaded.
+
+GP and intensity axis scales can each be set to `"global"` (computed from all experiments), `"auto"` (per sample), or fixed manual limits. Outputs PDFs to `figures/summary/`.
+
+---
+
+### `spectrum_golayfilt.R` — Spectrum diagnostic ###
+
+A diagnostic tool for inspecting individual C-Laurdan emission spectra and comparing GP calculation methods. Unlike the pipeline scripts, this script plots each spectrum file individually without averaging across steps.
+
+For each spectrum (or triplicate-averaged step), it:
+* Loads and optionally blank-subtracts the raw `.tsv` file.
+* Applies Savitzky–Golay smoothing.
+* Computes and prints all 7 GP methods to the console: raw exact (440/490 nm), raw band mean, SG exact, SG auto-detected peaks, SG band mean, SG band integrated, and log-normal.
+* Produces a PDF with the raw and SG-smoothed spectrum, shaded band regions, and all 6 non-LN GP values annotated in the caption (`show_method_comparison = TRUE`).
+* Optionally produces a second PDF page showing the Siano–Metzler log-normal decomposition with fitted blue, green, and (if 3-peak) intermediate components overlaid (`show_ln_decomposition = TRUE`).
+
+**Plot modes** (set `plot_all_steps`):
+* `FALSE` *(default)*: Plots only the first and last spectrum of the experiment.
+* `TRUE`: One page per individual spectrum file; output goes to `figures/spectra/all_spectra/`.
+
+Outputs PDFs to `figures/spectra/`.
+
 
 
 
