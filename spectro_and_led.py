@@ -92,7 +92,12 @@ def find_spectrometer(debug=False):
 	return spec
 
 async def capture_spectrum(spec, integration_time=1000, debug=False): # in milliseconds
-	print('\a',file=sys.stderr) # makes a beep when delay is over
+	try:
+		with open('/dev/tty', 'w') as tty:
+			tty.write('\a')
+			tty.flush()
+	except OSError:
+		pass
 	print(f"Taking spectrum with {integration_time} ms integration time", file=sys.stderr)
 	spec.integration_time_micros(int(integration_time*1000))
 	x = spec.wavelengths()
