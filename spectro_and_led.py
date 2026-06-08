@@ -110,7 +110,7 @@ async def capture_spectrum(spec, integration_time=1000, debug=False): # in milli
 	y = spec.intensities()
 	return x, y
 
-def preview_spectra(spectra, dark_subtracted=False):
+def preview_spectra(spectra, dark_subtracted=False, extra="", integration_time=None):
 	'''Show a preview plot of the spectra captured in this run.
 	matplotlib is imported lazily here so it is only required when -v/--visual
 	is used; basic spectrum capture does not depend on it.'''
@@ -124,7 +124,16 @@ def preview_spectra(spectra, dark_subtracted=False):
 		ax.plot(x, y, label=label, linewidth=0.8)
 	ax.set_xlabel("Wavelength (nm)")
 	ax.set_ylabel("Intensity (dark-subtracted)" if dark_subtracted else "Intensity")
-	ax.set_title(f"Preview of {len(spectra)} spectr{'um' if len(spectra) == 1 else 'a'}")
+	title = f"Preview of {len(spectra)} spectr{'um' if len(spectra) == 1 else 'a'}"
+	details = []
+	if extra:
+		details.append(f"{extra}")
+	if integration_time is not None:
+		details.append(f"{integration_time} ms")
+	details.append("dark-subtracted" if dark_subtracted else "no dark")
+	if details:
+		title += "\n" + " | ".join(details)
+	ax.set_title(title)
 	if len(spectra) <= 12:
 		ax.legend(fontsize="small")
 	fig.tight_layout()
@@ -246,7 +255,7 @@ async def main():
 		spec.close()
 
 		if args.visual and captured:
-			preview_spectra(captured, dark_subtracted=dark_y is not None)
+			preview_spectra(captured, dark_subtracted=dark_y is not None, extra=args.extra, integration_time=args.time)
 	except Exception as e:
 		print(f"Error in main loop: {e}", file=sys.stderr)
 
