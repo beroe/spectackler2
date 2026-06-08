@@ -32,7 +32,8 @@ def parse_args():
 	parser.add_argument('-t', '--time', type=int, default=1000, help='Integration time in milliseconds (default: 1000)')
 	parser.add_argument('-d', '--delay', type=int, default=0, help='Wait before taking spectrum')
 	parser.add_argument('-r', '--repeat', type=int, default=1, help='Number of times to repeat the measurement max 100 (default: 1)')
-	parser.add_argument('-c', '--cool', type=float, default=-1, help='TEC setpoint in °C for QE spectrometers (default: -1, disabled)')
+	parser.add_argument('-c', '--cool', type=float, default=-1, help='TEC setpoint in °C for QE spectrometers (default: -1, disabled)\nRecommend using -k option to wait for key entry')
+	parser.add_argument('-k', '--keyboard', action='store_true', help='Way for keypress when cooling is enabled')
 	parser.add_argument('-l', '--led', action='store_true', help='Turn on LED during spectrum capture (default: off)')
 
 	return parser.parse_args()
@@ -92,6 +93,7 @@ def find_spectrometer(debug=False):
 	return spec
 
 async def capture_spectrum(spec, integration_time=1000, debug=False): # in milliseconds
+	# This is supposed to beep but doesn't work!
 	try:
 		with open('/dev/tty', 'w') as tty:
 			tty.write('\a')
@@ -116,17 +118,25 @@ async def main():
 		spec = find_spectrometer(debug=args.debug)
 		if args.cool >= 0:
 			tecobj = set_cooling(spec, args.cool, debug=args.debug)
+			if  args.keyboard:
+				Prompt = "> Waiting for cooler. Press a key to start taking spectra:"
+				print(Prompt, file=sys.stderr)
+				Nothing = input(Prompt)
+			elif args.delay:	
+				print(f"Waiting {args.delay} seconds before starting", file=sys.stderr)
+				time.sleep(args.delay)
+			else: 
+				print(f"Suggest using -k option with cooling to let the cooler to get to temperature", file=sys.stderr)
+			actual = tecobj.read_temperature_degrees_celsius()
+			print(f"TEC setpoint: {args.cool:.1f} °C, current temperature: {actual:.1f} °C", file=sys.stderr)
+	
 
-		if args.delay:
-			print(f"Waiting {args.delay} seconds before starting", file=sys.stderr)
-			time.sleep(args.delay)
 	
 		for i in range(args.repeat):
   		# Turn on the LED if not repeating.
 			if args.repeat == 1 and args.led:
 				await switch_led("1", debug=args.debug, invert=args.invert)
 				await asyncio.sleep(0.1)  # LED stabilization time
-
 			# Capture spectrum if enabled
 			myA = None
 			myA = await capture_spectrum(spec, integration_time=args.time, debug=args.debug)
