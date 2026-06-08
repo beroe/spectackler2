@@ -46,6 +46,7 @@ This script can be run standalone or be called by another program (e.g., `cubett
 * `-i`, `--invert`: Inverts LED logic (default: 0=on, 1=off)
 * `-e`,`--extra`: Appends extra text about current pressure/temperature in output filename (e.g., _P1000_T5.tsv)
 * `-t`, `--time`: Set integration time (in ms)
+* `-v`, `--visual`: Shows a preview plot of the spectra captured in this run (useful with `-r`/`--repeat`). Requires `matplotlib` (`pip3 install matplotlib`); it is imported only when this option is used, so basic spectrum capture has no extra dependency.
 
 ### Arduino set up ###
 

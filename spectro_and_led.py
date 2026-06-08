@@ -38,6 +38,7 @@ def parse_args():
 	parser.add_argument('-c', '--cool', type=float, default=-1, help='TEC setpoint in °C for QE spectrometers (default: -1, disabled)\nRecommend using -k option to wait for key entry')
 	parser.add_argument('-k', '--keyboard', action='store_true', help='Way for keypress when cooling is enabled')
 	parser.add_argument('-l', '--led', action='store_true', help='Turn on LED during spectrum capture (default: off)')
+	parser.add_argument('-v', '--visual', action='store_true', help='Show a preview plot of the spectra captured in this run (requires matplotlib)')
 
 	return parser.parse_args()
 
@@ -109,6 +110,26 @@ async def capture_spectrum(spec, integration_time=1000, debug=False): # in milli
 	y = spec.intensities()
 	return x, y
 
+def preview_spectra(spectra, dark_subtracted=False):
+	'''Show a preview plot of the spectra captured in this run.
+	matplotlib is imported lazily here so it is only required when -v/--visual
+	is used; basic spectrum capture does not depend on it.'''
+	try:
+		import matplotlib.pyplot as plt
+	except ImportError:
+		print("matplotlib is required for --visual. Install with: pip3 install matplotlib", file=sys.stderr)
+		return
+	fig, ax = plt.subplots()
+	for label, (x, y) in spectra:
+		ax.plot(x, y, label=label, linewidth=0.8)
+	ax.set_xlabel("Wavelength (nm)")
+	ax.set_ylabel("Intensity (dark-subtracted)" if dark_subtracted else "Intensity")
+	ax.set_title(f"Preview of {len(spectra)} spectr{'um' if len(spectra) == 1 else 'a'}")
+	if len(spectra) <= 12:
+		ax.legend(fontsize="small")
+	fig.tight_layout()
+	plt.show()
+
 async def main():
 	"""Main async function that coordinates LED control and spectrum capture"""
 	args = parse_args()
@@ -159,6 +180,7 @@ async def main():
 			print("> Press return when ready to take spectrum:", file=sys.stderr)
 			input()
 
+		captured = []  # accumulate (label, (x, y)) for optional --visual preview
 		for i in range(args.repeat):
   		# Turn on the LED if not repeating.
 			if args.repeat == 1 and args.led:
@@ -173,6 +195,9 @@ async def main():
 			if dark_y is not None:
 				y = y - dark_y
 				myA = (x, y)
+			if args.visual:
+				label = f"R{i+1:02d}" if args.repeat > 1 else "spectrum"
+				captured.append((label, (x, y)))
 			# if args.debug:
 			# 	print(f"{x}", file=sys.stderr)
 			max_intensity = max(y)
@@ -219,6 +244,9 @@ async def main():
 			actual = tecobj.read_temperature_degrees_celsius()
 			print(f"Final temperature: {actual:.1f} °C", file=sys.stderr)
 		spec.close()
+
+		if args.visual and captured:
+			preview_spectra(captured, dark_subtracted=dark_y is not None)
 	except Exception as e:
 		print(f"Error in main loop: {e}", file=sys.stderr)
 
