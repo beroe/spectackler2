@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """ Turn on LED with serial command, then run brizzy to save one spectrum, then turn off LED.
+v 0.5 added wait-for-keyboard -k to let the cooler get down to temp before a loop
 v 0.4 added temperature control and made delay just at the start
 v 0.3 add repeat and delay before capture
 v 0.2 autoreveal arduino port
@@ -104,9 +105,6 @@ async def capture_spectrum(spec, integration_time=1000, debug=False): # in milli
 	spec.integration_time_micros(int(integration_time*1000))
 	x = spec.wavelengths()
 	y = spec.intensities()
-	max_intensity = max(y)
-	max_wavelength = x[y.argmax()]
-	print(f"Max intensity: {max_intensity:.2f} at {max_wavelength:.2f} nm", file=sys.stderr)
 	return x, y
 
 async def main():
@@ -140,11 +138,19 @@ async def main():
 			# Capture spectrum if enabled
 			myA = None
 			myA = await capture_spectrum(spec, integration_time=args.time, debug=args.debug)
-			if not args.write and args.repeat == 1 and myA is not None:
-				for a,b in zip(myA[0], myA[1]):
-					print(f"{a:.2f}\t{b:.2f}")
 			
-			if args.repeat == 1 and args.led:
+			x,y=myA
+			max_intensity = max(x)
+			max_wavelength = x[y.argmax()]
+
+			if not args.write:
+				if  args.repeat == 1 and myA is not None:
+					for a,b in zip(myA[0], myA[1]):
+						print(f"{a:.2f}\t{b:.2f}")
+				elif i==1:
+					print(f"Not printing spectra. Repeat mode", file=sys.stderr) 
+			
+			elif args.repeat == 1 and args.led:
 				await asyncio.sleep(0.1)  # LED stabilization time
 				# Turn off the LED
 				await switch_led("0", debug=args.debug, invert=args.invert)
@@ -168,6 +174,9 @@ async def main():
 					for a, b in zip(myA[0], myA[1]):
 						f.write(f"{a:.2f}\t{b:.2f}\n")
 				print(f"Wrote spectrum to {FileName}", file=sys.stderr)
+			if max_intensity > -1:
+				print(f"Max intensity: {max_intensity:.2f} at {max_wavelength:.2f} nm", file=sys.stderr)
+
 		if tecobj:
 			actual = tecobj.read_temperature_degrees_celsius()
 			print(f"Final temperature: {actual:.1f} °C", file=sys.stderr)
