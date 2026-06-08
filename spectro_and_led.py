@@ -32,7 +32,8 @@ def parse_args():
 	parser.add_argument('-i', '--invert', action='store_false', help='Normal LED control logic (default: 0=on, 1=off)', default=True)
 	parser.add_argument('-e','--extra',type=str, default="",help='append to file name')
 	parser.add_argument('-t', '--time', type=int, default=1000, help='Integration time in milliseconds (default: 1000)')
-	parser.add_argument('-d', '--delay', type=int, default=0, help='Wait before taking spectrum')
+	# parser.add_argument('-d', '--delay', type=int, default=0, help='Wait before taking spectrum')  # removed in favor of -k
+	parser.add_argument('-d', '--dark', action='store_true', help='Capture a background/dark spectrum first and subtract it from subsequent spectra')
 	parser.add_argument('-r', '--repeat', type=int, default=1, help='Number of times to repeat the measurement max 100 (default: 1)')
 	parser.add_argument('-c', '--cool', type=float, default=-1, help='TEC setpoint in °C for QE spectrometers (default: -1, disabled)\nRecommend using -k option to wait for key entry')
 	parser.add_argument('-k', '--keyboard', action='store_true', help='Way for keypress when cooling is enabled')
@@ -121,17 +122,42 @@ async def main():
 				Prompt = "> Waiting for cooler. Press a key to start taking spectra:"
 				print(Prompt, file=sys.stderr)
 				Nothing = input()
-			elif args.delay:	
-				print(f"Waiting {args.delay} seconds before starting", file=sys.stderr)
-				time.sleep(args.delay)
-			else: 
+			# --delay option removed in favor of -k
+			# elif args.delay:
+			# 	print(f"Waiting {args.delay} seconds before starting", file=sys.stderr)
+			# 	time.sleep(args.delay)
+			else:
 				print(f"Suggest using -k option with cooling to let the cooler to get to temperature", file=sys.stderr)
 			actual = tecobj.read_temperature_degrees_celsius()
 			print(f"TEC setpoint: {args.cool:.1f} °C, current temperature: {actual:.1f} °C", file=sys.stderr)
 	
 
 		if args.repeat >1 and not (args.write):
-			print(f"\nNot printing spectra. Repeat mode\n", file=sys.stderr) 
+			print(f"\nNot printing spectra. Repeat mode\n", file=sys.stderr)
+
+		dark_y = None
+		if args.dark:
+			print("> Press return when ready to take background spectrum:", file=sys.stderr)
+			input()
+			dark_x, dark_y = await capture_spectrum(spec, integration_time=args.time, debug=args.debug)
+			print(f"Dark max intensity: {max(dark_y):.2f} at {dark_x[dark_y.argmax()]:.2f} nm", file=sys.stderr)
+			if args.write:
+				dark_timestamp = datetime.now().strftime("%Y_%b_%d+%H_%M_%S")
+				if os.path.isabs(args.extra):
+					base, ext = os.path.splitext(args.extra)
+					DarkFile = f"{base}=DARK{ext}"
+					os.makedirs(os.path.dirname(DarkFile), exist_ok=True)
+				else:
+					DarkFile = os.path.join("data", f"spectrum_{dark_timestamp}_{args.extra}=DARK.tsv")
+					os.makedirs("data", exist_ok=True)
+				with open(DarkFile, "w") as f:
+					f.write("Wavelength\tIntensity\n")
+					for a, b in zip(dark_x, dark_y):
+						f.write(f"{a:.2f}\t{b:.2f}\n")
+				print(f"Wrote DARK spectrum to {DarkFile}", file=sys.stderr)
+			args.keyboard = True
+			print("> Press return when ready to take spectrum:", file=sys.stderr)
+			input()
 
 		for i in range(args.repeat):
   		# Turn on the LED if not repeating.
@@ -144,8 +170,11 @@ async def main():
 			# await asyncio.sleep(0.1)  # LED stabilization time
 			
 			x,y=myA
+			if dark_y is not None:
+				y = y - dark_y
+				myA = (x, y)
 			# if args.debug:
-			# 	print(f"{x}", file=sys.stderr) 
+			# 	print(f"{x}", file=sys.stderr)
 			max_intensity = max(y)
 			max_wavelength = x[y.argmax()]
 
@@ -161,15 +190,20 @@ async def main():
 			
 			# Write to file if enabled and spectrum was captured
 			timestamp = datetime.now().strftime("%Y_%b_%d+%H_%M_%S")
+			name_prefix = "spectrum-bg" if args.dark else "spectrum"
 			if os.path.isabs(args.extra):
-				FileName = args.extra
+				if args.dark:
+					base, ext = os.path.splitext(args.extra)
+					FileName = f"{base}-bg{ext}"
+				else:
+					FileName = args.extra
 				# ensure directory exists
 				os.makedirs(os.path.dirname(FileName), exist_ok=True)
 			else:
 				if args.repeat > 1:
-					FileName = os.path.join("data", f"spectrum_{timestamp}_{args.extra}_R{i+1:02d}.tsv")
+					FileName = os.path.join("data", f"{name_prefix}_{timestamp}_{args.extra}_R{i+1:02d}.tsv")
 				else:
-					FileName = os.path.join("data", f"spectrum_{timestamp}_{args.extra}.tsv")
+					FileName = os.path.join("data", f"{name_prefix}_{timestamp}_{args.extra}.tsv")
 				os.makedirs("data", exist_ok=True)
 
 			if args.write and myA is not None:
