@@ -40,6 +40,29 @@ The program:
 
 This script can be run standalone or be called by another program (e.g., `cubette-mini.py`).
 
+### Minimum installation (standalone `spectro_and_led.py`) ###
+
+To run only `spectro_and_led.py` (without the temperature/pressure control stack), you need:
+
+1. **Python 3** and two Python packages:
+   ```bash
+   pip3 install pyserial seabreeze
+   ```
+2. **Ocean Optics device drivers** for the `seabreeze` library:
+   ```bash
+   seabreeze_os_setup
+   ```
+3. **The following files from this repository**, kept together in the same directory:
+   * `spectro_and_led.py`
+   * `spec_config.py` — set `portARDU` to your Arduino's serial port
+4. **An Arduino** running the sketch in the [Arduino set up](#arduino-set-up) section below (only needed if you use the `-l`/`--led` option).
+5. *(Optional)* `matplotlib` for the `-v`/`--visual` preview plot:
+   ```bash
+   pip3 install matplotlib
+   ```
+
+Then run it from within that directory, e.g. `./spectro_and_led.py -w`.
+
 ### Command line arguments ###
 * `-b`, `--debug`: Prints extra diagnostic output
 * `-w`, `--write`: Writes spectrum data to a `.tsv` file instead of in console. Data are saved as: `data/spectrum_YYYY_Mmm_DD+HH_MM_SS<extra>.tsv`
