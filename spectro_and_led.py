@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """ Turn on LED with serial command, then run brizzy to save one spectrum, then turn off LED.
-v 0.5 added wait-for-keyboard -k to let the cooler get down to temp before a loop
-v 0.4 added temperature control and made delay just at the start
-v 0.3 add repeat and delay before capture
-v 0.2 autoreveal arduino port
+v 0.5.1  bug fixes
+v 0.5    added wait-for-keyboard -k to let the cooler get down to temp before a loop
+v 0.4    added temperature control and made delay just at the start
+v 0.3    add repeat and delay before capture
+v 0.2    autoreveal arduino port
 Requirements:
 pip3 install pyserial
 pip3 install seabreeze
@@ -119,7 +120,7 @@ async def main():
 			if  args.keyboard:
 				Prompt = "> Waiting for cooler. Press a key to start taking spectra:"
 				print(Prompt, file=sys.stderr)
-				Nothing = input(Prompt)
+				Nothing = input()
 			elif args.delay:	
 				print(f"Waiting {args.delay} seconds before starting", file=sys.stderr)
 				time.sleep(args.delay)
@@ -129,7 +130,9 @@ async def main():
 			print(f"TEC setpoint: {args.cool:.1f} °C, current temperature: {actual:.1f} °C", file=sys.stderr)
 	
 
-	
+		if args.repeat >1 and not (args.write):
+			print(f"\nNot printing spectra. Repeat mode\n", file=sys.stderr) 
+
 		for i in range(args.repeat):
   		# Turn on the LED if not repeating.
 			if args.repeat == 1 and args.led:
@@ -138,19 +141,20 @@ async def main():
 			# Capture spectrum if enabled
 			myA = None
 			myA = await capture_spectrum(spec, integration_time=args.time, debug=args.debug)
+			# await asyncio.sleep(0.1)  # LED stabilization time
 			
 			x,y=myA
-			max_intensity = max(x)
+			# if args.debug:
+			# 	print(f"{x}", file=sys.stderr) 
+			max_intensity = max(y)
 			max_wavelength = x[y.argmax()]
 
 			if not args.write:
 				if  args.repeat == 1 and myA is not None:
 					for a,b in zip(myA[0], myA[1]):
 						print(f"{a:.2f}\t{b:.2f}")
-				elif i==1:
-					print(f"Not printing spectra. Repeat mode", file=sys.stderr) 
 			
-			elif args.repeat == 1 and args.led:
+			if args.repeat == 1 and args.led:
 				await asyncio.sleep(0.1)  # LED stabilization time
 				# Turn off the LED
 				await switch_led("0", debug=args.debug, invert=args.invert)
