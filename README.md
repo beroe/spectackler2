@@ -48,14 +48,15 @@ To run only `spectro_and_led.py` (without the temperature/pressure control stack
    ```bash
    pip3 install pyserial seabreeze
    ```
-2. **Ocean Optics device drivers** for the `seabreeze` library:
+2. **(Linux only) USB device permissions** for the `seabreeze` library. On Linux, install the udev rules so the spectrometer is accessible without root:
    ```bash
    seabreeze_os_setup
    ```
-3. **The following files from this repository**, kept together in the same directory:
-   * `spectro_and_led.py`
-   * `spec_config.py` — set `portARDU` to your Arduino's serial port
-4. **An Arduino** running the sketch in the [Arduino set up](#arduino-set-up) section below (only needed if you use the `-l`/`--led` option).
+   This step is **not needed on macOS or Windows** — the bundled backend works without it.
+3. **`spectro_and_led.py` from this repository.** This is the only file required for plain spectrum capture.
+4. **(LED only)** If you use the `-l`/`--led` option:
+   * Copy `spec_config.py` into the same directory and set `portARDU` to your Arduino's serial port. It is imported lazily, so it is only needed when the LED is enabled and the Arduino port cannot be auto-discovered.
+   * Have an **Arduino** running the sketch in the [Arduino set up](#arduino-set-up) section below.
 5. *(Optional)* `matplotlib` for the `-v`/`--visual` preview plot:
    ```bash
    pip3 install matplotlib

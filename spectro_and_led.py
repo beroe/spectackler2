@@ -23,7 +23,8 @@ import argparse
 import seabreeze.spectrometers as sb
 import seabreeze
 from datetime import datetime
-from spec_config import portARDU
+# portARDU is imported lazily inside switch_led so spec_config.py is only
+# required when the LED (-l) is used and the Arduino port can't be auto-discovered.
 # TODO: get portARDU from a glob.glob
 
 def parse_args():
@@ -55,6 +56,7 @@ async def switch_led(state="1", debug=False,invert=False):
 		ARDUINOPORT = Port[0]
 		print (f"Auto-discovered Arduino Port: {ARDUINOPORT}", file=sys.stderr)
 	else:
+		from spec_config import portARDU
 		ARDUINOPORT = portARDU
 
 	""" Turn on the LED by sending a command to the Arduino. 
