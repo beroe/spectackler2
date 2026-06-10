@@ -27,6 +27,42 @@ from datetime import datetime
 # required when the LED (-l) is used and the Arduino port can't be auto-discovered.
 # TODO: get portARDU from a glob.glob
 
+# Large block-letter banners (figlet "banner3" font) so the COOL/DARK/SPECTRA
+# prompts are easy to read from across a dark room.
+BANNER_COOL = r"""
+ ######   #######   #######  ##
+##    ## ##     ## ##     ## ##
+##       ##     ## ##     ## ##
+##       ##     ## ##     ## ##
+##       ##     ## ##     ## ##
+##    ## ##     ## ##     ## ##
+ ######   #######   #######  ########
+"""
+
+BANNER_DARK = r"""
+########     ###    ########  ##    ##
+##     ##   ## ##   ##     ## ##   ##
+##     ##  ##   ##  ##     ## ##  ##
+##     ## ##     ## ########  #####
+##     ## ######### ##   ##   ##  ##
+##     ## ##     ## ##    ##  ##   ##
+########  ##     ## ##     ## ##    ##
+"""
+
+BANNER_SPECTRA = r"""
+ ######  ########  ########  ######  ######## ########     ###
+##    ## ##     ## ##       ##    ##    ##    ##     ##   ## ##
+##       ##     ## ##       ##          ##    ##     ##  ##   ##
+ ######  ########  ######   ##          ##    ########  ##     ##
+      ## ##        ##       ##          ##    ##   ##   #########
+##    ## ##        ##       ##    ##    ##    ##    ##  ##     ##
+ ######  ##        ########  ######     ##    ##     ## ##     ##
+"""
+
+def banner(art):
+	"""Print a large block-letter banner to stderr."""
+	print(art, file=sys.stderr)
+
 def parse_args():
 	parser = argparse.ArgumentParser(description='Control LED and capture spectrum from Ocean Optics spectrometer')
 	parser.add_argument('-b', '--debug', action='store_true', help='Enable debug output')
@@ -152,6 +188,7 @@ async def main():
 		if args.cool >= 0:
 			tecobj = set_cooling(spec, args.cool, debug=args.debug)
 			if  args.keyboard:
+				banner(BANNER_COOL)
 				Prompt = "> Waiting for cooler. Press a key to start taking spectra:"
 				print(Prompt, file=sys.stderr)
 				Nothing = input()
@@ -170,6 +207,7 @@ async def main():
 
 		dark_y = None
 		if args.dark:
+			banner(BANNER_DARK)
 			print("> Press return when ready to take background spectrum:", file=sys.stderr)
 			input()
 			dark_x, dark_y = await capture_spectrum(spec, integration_time=args.time, debug=args.debug)
@@ -189,6 +227,7 @@ async def main():
 						f.write(f"{a:.2f}\t{b:.2f}\n")
 				print(f"Wrote DARK spectrum to {DarkFile}", file=sys.stderr)
 			args.keyboard = True
+			banner(BANNER_SPECTRA)
 			print("> Press return when ready to take spectrum:", file=sys.stderr)
 			input()
 
