@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """ Turn on LED with serial command, then run brizzy to save one spectrum, then turn off LED.
+v 0.6.1  added large banner prompts
 v 0.6    added visualization -v option
 v 0.5.1  bug fixes
 v 0.5    added wait-for-keyboard -k to let the cooler get down to temp before a loop
