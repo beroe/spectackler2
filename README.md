@@ -5,6 +5,39 @@ This is a stripped down clone of the octopode [spectackler repository](https://g
 Currently all these scripts must be run from within the repository directory saved on your local computer. 
 e.g., to run `cubette-mini.py` type `./cubette-mini.py` in the terminal from within the spectackler2 repository.
 
+## Contents
+
+### Main scripts
+* **`cubette-mini.py`**: Main experiment script: automates temperature/pressure control and spectral data collection across a user-defined experimental matrix.
+* **`spectro_and_led.py`**: Controls an Arduino-driven LED and OceanOptics spectrometer to capture fluorescence spectra; can be run standalone or called by `cubette-mini.py`.
+* **`plot_spectrum.py`**: Plots fluorescence spectra from `.tsv` files with optional blank/dark subtraction; supports GIF export.
+* **`backup-spectro.py`**: Earlier, simpler version of `spectro_and_led.py` with a hardcoded Arduino port (kept for reference).
+* **`viscotheque_lite.py`**: Original parent script from the spectackler project that `cubette-mini.py` is based on.
+
+### Configuration
+- **`spec_config.py`**: Serial port assignments for the Arduino, water bath, and syringe pump; also sets the statefile path.
+
+### Control modules
+- **`neslabrte.py`**: Serial communication module for the NESLAB RTE10 water bath.
+- **`isco260D.py`**: Serial communication module for the ISCO 260D syringe pump; can also initiate an interactive test session for the syringe pump.
+
+### Test scripts - short, interactive scripts to test if the water bath and pump are communicating correctly
+- **`bathtest.py`**: Interactive test session for the NESLAB water bath.
+- **`pumptest.py`**: Interactive test session for the syringe pump.
+
+
+### Utility scripts
+- **`utils/statematrix_laurdan_2ex.py`**: Generates a pressure/temperature state matrix for C-Laurdan GP measurements across a broad range (0-500 bar, 3-28 °C).
+- **`utils/statematrix_laurdan_cold.py`**: Generates a state matrix optimised for cold C-Laurdan GP measurements (0-500 bar, 0.5-10 °C).
+
+### R analysis scripts
+- **`gp_cubette.R`**: Primary analysis script: computes C-Laurdan Generalized Polarization (GP) from raw spectra and generates GP-over-time and GP landscape plots.
+- **`gp_species_compare.R`**: Compares GP values across multiple samples and species with cross-species line plots.
+- **`gp_summary_figure.R`**: Assembles a per-experiment summary PDF combining metadata, GP landscape, GP over time, and emission spectra panels.
+- **`spectrum_golayfilt.R`**: Diagnostic tool for inspecting individual spectra and comparing GP calculation methods.
+
+---
+
 ## Temperature and pressure control script
 
 `cubette-mini.py` automates the control of a **Thermo NESLAB RTE10 water bath** and an **ISCO 260D syringe pump** according to a defined temperature/pressure program. It records all measured data and takes spectral measurements using an **OceanOptics USB2000 spectrometer**. The main parent code from `spectackler` is `viscotheque_lite.py`. 
@@ -52,7 +85,7 @@ To run only `spectro_and_led.py` (without the temperature/pressure control stack
    ```bash
    seabreeze_os_setup
    ```
-   This step is **not needed on macOS or Windows** — the bundled backend works without it.
+   This step is **not needed on macOS or Windows** - the bundled backend works without it.
 3. **`spectro_and_led.py` from this repository.** This is the only file required for plain spectrum capture.
 4. **(LED only)** If you use the `-l`/`--led` option:
    * Copy `spec_config.py` into the same directory and set `portARDU` to your Arduino's serial port. It is imported lazily, so it is only needed when the LED is enabled and the Arduino port cannot be auto-discovered.
@@ -169,10 +202,10 @@ spectackler2/
 spectrum_YYYYMMDDTHHMMSS_idx<N>_P<psi>_T<temp>.tsv
 ```
 
-* `YYYYMMDDTHHMMSS` — acquisition timestamp (e.g., `20260408T143022`)
-* `idx<N>` — replicate index within a pressure/temperature step (1, 2, or 3)
-* `P<psi>` — pressure in PSI as an integer (e.g., `P14504`); converted to bar by the scripts
-* `T<temp>` — temperature in °C (e.g., `T5.0`)
+* `YYYYMMDDTHHMMSS`: acquisition timestamp (e.g., `20260408T143022`)
+* `idx<N>`: replicate index within a pressure/temperature step (1, 2, or 3)
+* `P<psi>`: pressure in PSI as an integer (e.g., `P14504`); converted to bar by the scripts
+* `T<temp>`: temperature in °C (e.g., `T5.0`)
 
 Each `.tsv` has two columns: `Wavelength` (nm) and `Intensity`.
 
@@ -182,10 +215,10 @@ The blank spectrum must match the pattern `blank_*.tsv` and be placed in the sam
 
 `gp_species_compare.R` and `gp_summary_figure.R` both read the GP CSVs produced by `gp_cubette.R` and will error if those files do not exist. The recommended order is:
 
-1. `spectrum_golayfilt.R` — optional diagnostic, can be run on raw data at any time
-2. `gp_cubette.R` — computes GP and writes CSVs and first-pass plots
-3. `gp_summary_figure.R` — per-experiment summary page (requires step 2)
-4. `gp_species_compare.R` — cross-species comparison (requires step 2)
+1. `spectrum_golayfilt.R`: optional diagnostic, can be run on raw data at any time
+2. `gp_cubette.R`: computes GP and writes CSVs and first-pass plots
+3. `gp_summary_figure.R`: per-experiment summary page (requires step 2)
+4. `gp_species_compare.R`: cross-species comparison (requires step 2)
 
 #### `cubette_metadata.xlsx` ####
 
@@ -193,7 +226,7 @@ Required by `gp_cubette.R` (landscape mode only), `gp_summary_figure.R`, and `gp
 
 | Column | Description |
 |---|---|
-| `file_name` | Experiment folder name in `data/raw/` — must match exactly |
+| `file_name` | Experiment folder name in `data/raw/` - must match exactly |
 | `species` | Species name displayed on plots |
 | `sample_no` | Sample identifier (e.g., `D1339bw9`) |
 | `group` | Functional group (`lobate`, `beroid`, `cydippid`, etc.) |
