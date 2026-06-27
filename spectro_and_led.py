@@ -71,7 +71,7 @@ def parse_args():
 	parser.add_argument('-i', '--invert', action='store_false', help='Normal LED control logic (default: 0=on, 1=off)', default=True)
 	parser.add_argument('-e','--extra',type=str, default="",help='append to file name')
 	parser.add_argument('-t', '--time', type=int, default=1000, help='Integration time in milliseconds (default: 1000)')
-	# parser.add_argument('-d', '--delay', type=int, default=0, help='Wait before taking spectrum')  # removed in favor of -k
+	parser.add_argument('--delay', type=int, default=0, help='Wait before taking spectrum')  # removed in favor of -k
 	parser.add_argument('-d', '--dark', action='store_true', help='Capture a background/dark spectrum first and subtract it from subsequent spectra')
 	parser.add_argument('-r', '--repeat', type=int, default=1, help='Number of times to repeat the measurement max 100 (default: 1)')
 	parser.add_argument('-c', '--cool', type=float, default=-1, help='TEC setpoint in °C for QE spectrometers (default: -1, disabled)\nRecommend using -k option to wait for key entry')
@@ -194,9 +194,7 @@ async def main():
 				print(Prompt, file=sys.stderr)
 				Nothing = input()
 			# --delay option removed in favor of -k
-			# elif args.delay:
-			# 	print(f"Waiting {args.delay} seconds before starting", file=sys.stderr)
-			# 	time.sleep(args.delay)
+
 			else:
 				print(f"Suggest using -k option with cooling to let the cooler to get to temperature", file=sys.stderr)
 			actual = tecobj.read_temperature_degrees_celsius()
@@ -233,6 +231,9 @@ async def main():
 			input()
 
 		captured = []  # accumulate (label, (x, y)) for optional --visual preview
+		if args.delay:
+		 	print(f"Waiting {args.delay} seconds before starting", file=sys.stderr)
+		 	time.sleep(args.delay)
 		for i in range(args.repeat):
   		# Turn on the LED if not repeating.
 			if args.repeat == 1 and args.led:
