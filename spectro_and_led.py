@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """ Turn on LED with serial command, then run brizzy to save one spectrum, then turn off LED.
+v 0.6.2  added back in -D --delay after keypress
 v 0.6.1  added large banner prompts
 v 0.6    added visualization -v option
 v 0.5.1  bug fixes
@@ -71,7 +72,7 @@ def parse_args():
 	parser.add_argument('-i', '--invert', action='store_false', help='Normal LED control logic (default: 0=on, 1=off)', default=True)
 	parser.add_argument('-e','--extra',type=str, default="",help='append to file name')
 	parser.add_argument('-t', '--time', type=int, default=1000, help='Integration time in milliseconds (default: 1000)')
-	parser.add_argument('--delay', type=int, default=0, help='Wait before taking spectrum')  # removed in favor of -k
+	parser.add_argument('-D','--delay', type=int, default=0, help='Wait before taking spectrum')  # removed in favor of -k
 	parser.add_argument('-d', '--dark', action='store_true', help='Capture a background/dark spectrum first and subtract it from subsequent spectra')
 	parser.add_argument('-r', '--repeat', type=int, default=1, help='Number of times to repeat the measurement max 100 (default: 1)')
 	parser.add_argument('-c', '--cool', type=float, default=-1, help='TEC setpoint in °C for QE spectrometers (default: -1, disabled)\nRecommend using -k option to wait for key entry')
