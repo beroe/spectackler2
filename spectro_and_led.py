@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """ Turn on LED with serial command, then run brizzy to save one spectrum, then turn off LED.
+v 0.6.3  trim off 3 values from each end and dismiss plot with RETURN
 v 0.6.2  added back in -D --delay after keypress
 v 0.6.1  added large banner prompts
 v 0.6    added visualization -v option
