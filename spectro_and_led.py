@@ -149,6 +149,10 @@ async def capture_spectrum(spec, integration_time=1000, debug=False): # in milli
 	spec.integration_time_micros(int(integration_time*1000))
 	x = spec.wavelengths()
 	y = spec.intensities()
+	# Trim 3 noisy values from each end of the spectrum before any processing/saving.
+	TRIM = 3
+	x = x[TRIM:-TRIM]
+	y = y[TRIM:-TRIM]
 	return x, y
 
 def preview_spectra(spectra, dark_subtracted=False, extra="", integration_time=None):
@@ -178,7 +182,15 @@ def preview_spectra(spectra, dark_subtracted=False, extra="", integration_time=N
 	if len(spectra) <= 12:
 		ax.legend(fontsize="small")
 	fig.tight_layout()
-	plt.show()
+	# Show the plot without blocking, then close it when the user presses Return
+	# at the command line (instead of forcing them to close the window manually).
+	plt.show(block=False)
+	plt.pause(0.1)  # let the GUI event loop draw the window
+	try:
+		input("> Press return to close the plot and finish: ")
+	except (EOFError, KeyboardInterrupt):
+		pass
+	plt.close(fig)
 
 async def main():
 	"""Main async function that coordinates LED control and spectrum capture"""
