@@ -188,7 +188,9 @@ def preview_spectra(spectra, dark_subtracted=False, extra="", integration_time=N
 	plt.show(block=False)
 	plt.pause(0.1)  # let the GUI event loop draw the window
 	try:
-		input("> Press return to close the plot and finish: ")
+		print("> Press return to close the plot and finish: ", end="", file=sys.stderr)
+		sys.stderr.flush()
+		input()
 	except (EOFError, KeyboardInterrupt):
 		pass
 	plt.close(fig)
