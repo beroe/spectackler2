@@ -247,6 +247,12 @@ async def main():
 			input()
 
 		captured = []  # accumulate (label, (x, y)) for optional --visual preview
+		# If -k was requested but neither the cooling (-c) nor dark (-d) path
+		# already prompted, wait for a keypress before capturing.
+		if args.keyboard and args.cool < 0 and not args.dark:
+			print("> Press return to start taking spectra: ", end="", file=sys.stderr)
+			sys.stderr.flush()
+			input()
 		if args.delay:
 		 	print(f"Waiting {args.delay} seconds before starting", file=sys.stderr)
 		 	time.sleep(args.delay)
