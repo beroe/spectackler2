@@ -13,7 +13,7 @@
 # Run from the project root:
 #   Rscript scripts/gp_species_compare.R
 #
-# Edited: 05/20/2026
+# Edited: 08/17/2026
 # ──────────────────────────────────────────────────────────────────────────
 
 suppressPackageStartupMessages({
@@ -61,7 +61,7 @@ temp_round_deg  <- 1   # round temperature to nearest N °C
 # When TRUE, treated samples automatically inherit the control color
 # for that species (same species, treat = "none"), so lines share a
 # color and differ only in style.
-include_treatments <- TRUE
+include_treatments <- FALSE
 
 # ── Group / species filtering ───────────────────────────────
 # NULL: include all groups in one combined plot.
@@ -71,16 +71,39 @@ include_treatments <- TRUE
 # - "beroid"
 # - "cydippid"
 # "all": produce a combined plot AND one plot per group.
-groups_include <- c("beroid")
+groups_include <- c("all")
 
 # TRUE: save one plot per group in addition to the combined plot.
 # Automatically set to TRUE when groups_include = "all".
 plot_by_group  <- FALSE
 
+# ── Experiment filtering ─────────────────────────────────────
+# NULL (default): include all experiments that pass the group/species and
+# treatment filters above.
+# Character vector: restrict to these exact experiments (file_name values,
+# i.e. the CSV file prefixes in results/<GP_method>/), e.g.
+experiments_include <- c("AmberLobate_D1492d6_072026",
+                         "Bathocyroe_V4573d3_040726",
+                         "Bolinopsis_V4573d5_040626",
+                         "Llyria_D1442d4_041726",
+                         "Hcal_MBAC1_040326",
+                         "GoldCydip_D1451d2_041526",
+                         "Redcydip_D1369d10_041326",
+                         "GoldCydip_D1451d2_041526",
+                         "Beroe_MB250428bw13_041026",
+                         "Beroeabyss_V4572ss11_040926")
+# Combines with groups_include / include_treatments as an intersection —
+# an experiment must pass ALL filters to be plotted.
+#experiments_include <- NULL
+
 # ── Output ──────────────────────────────────────────────────
-output_prefix <- "all_species"
+output_prefix <- "all_ctenopalooza"
 
 # ── GP y-axis limits ────────────────────────────────────────
+# NULL (default): computed automatically (see "GLOBAL Y-AXIS LIMITS" below)
+# from the full filtered dataset across ALL groups, so "all", "lobate",
+# "beroid", and "cydippid" plots always share the same y-axis range and
+# stay directly comparable. Set manually to override.
 GP_ylim <- NULL
 # GP_ylim <- c(-0.7, 0.1)
 
@@ -166,7 +189,19 @@ if (!include_treatments) {
   if (dropped > 0) message("Excluded ", dropped, " rows with treatments (set include_treatments = TRUE to keep)")
 }
 
-# Keep a group-unfiltered copy for per-species treatment plots
+if (!is.null(experiments_include)) {
+  n_before <- nrow(gp_all)
+  gp_all   <- gp_all %>% filter(file_name %in% experiments_include)
+  dropped  <- n_before - nrow(gp_all)
+  if (dropped > 0) message("Excluded ", dropped, " rows not in experiments_include")
+  missing_exp <- setdiff(experiments_include, unique(gp_all$file_name))
+  if (length(missing_exp) > 0)
+    warning("experiments_include entries not found in data: ",
+            paste(missing_exp, collapse = ", "))
+}
+
+# Keep a group-unfiltered copy for per-species treatment plots and for
+# computing global y-axis limits (still respects treatment/experiment filters)
 gp_all_ungrouped <- gp_all
 
 if (!is.null(groups_include) && !identical(groups_include, "all")) {
@@ -174,7 +209,7 @@ if (!is.null(groups_include) && !identical(groups_include, "all")) {
 }
 
 if (nrow(gp_all) == 0)
-  stop("No data remains after filtering — check groups_include / include_treatments")
+  stop("No data remains after filtering — check groups_include / experiments_include / include_treatments")
 
 # ============================================================
 # SUMMARISE HELPERS
@@ -224,6 +259,30 @@ native_marker_df <- function(summary_df, axis = c("pressure", "temperature")) {
                         rule = 2)$y,
       .groups  = "drop"
     )
+}
+
+# ============================================================
+# GLOBAL Y-AXIS LIMITS
+# ============================================================
+# Computed once from the full filtered dataset (gp_all_ungrouped: all
+# groups, after treatment/experiment filtering) so every plot — "all",
+# a single group, or any groups_include subset — shares the same y-axis
+# range and stays visually comparable. Skipped if GP_ylim was set manually
+# above.
+
+if (is.null(GP_ylim)) {
+  s_press_global <- summarise_for_axis(gp_all_ungrouped, "pressure")
+  s_temp_global  <- summarise_for_axis(gp_all_ungrouped, "temperature")
+  
+  gp_range <- bind_rows(
+    s_press_global %>% transmute(lo = GP_mean - GP_se, hi = GP_mean + GP_se),
+    s_temp_global  %>% transmute(lo = GP_mean - GP_se, hi = GP_mean + GP_se)
+  ) %>%
+    summarise(lo = min(lo, na.rm = TRUE), hi = max(hi, na.rm = TRUE))
+  
+  GP_ylim <- c(gp_range$lo, gp_range$hi)
+  message("Global GP y-axis limits: [", round(GP_ylim[1], 3), ", ",
+          round(GP_ylim[2], 3), "]")
 }
 
 # ============================================================
