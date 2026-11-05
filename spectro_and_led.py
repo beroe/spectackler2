@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """ Turn on LED with serial command, then run brizzy to save one spectrum, then turn off LED.
+v 0.6.4  -k shows SPECTRA banner and waits even without -c or -d
 v 0.6.3  trim off 3 values from each end and dismiss plot with RETURN
 v 0.6.2  added back in -D --delay after keypress
 v 0.6.1  added large banner prompts
@@ -77,7 +78,7 @@ def parse_args():
 	parser.add_argument('-d', '--dark', action='store_true', help='Capture a background/dark spectrum first and subtract it from subsequent spectra')
 	parser.add_argument('-r', '--repeat', type=int, default=1, help='Number of times to repeat the measurement max 100 (default: 1)')
 	parser.add_argument('-c', '--cool', type=float, default=-1, help='TEC setpoint in °C for QE spectrometers (default: -1, disabled)\nRecommend using -k option to wait for key entry')
-	parser.add_argument('-k', '--keyboard', action='store_true', help='Way for keypress when cooling is enabled')
+	parser.add_argument('-k', '--keyboard', action='store_true', help='Wait for keypress (with SPECTRA banner) before taking spectra')
 	parser.add_argument('-l', '--led', action='store_true', help='Turn on LED during spectrum capture (default: off)')
 	parser.add_argument('-v', '--visual', action='store_true', help='Show a preview plot of the spectra captured in this run (requires matplotlib)')
 
@@ -250,6 +251,7 @@ async def main():
 		# If -k was requested but neither the cooling (-c) nor dark (-d) path
 		# already prompted, wait for a keypress before capturing.
 		if args.keyboard and args.cool < 0 and not args.dark:
+			banner(BANNER_SPECTRA)
 			print("> Press return to start taking spectra: ", end="", file=sys.stderr)
 			sys.stderr.flush()
 			input()
